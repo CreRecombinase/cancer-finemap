@@ -1,0 +1,33 @@
+---
+title: "Home"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This is the page for the cancer-germline project. Below are links to analyses.
+
+Current GWAS:
+
+* Breast cancer
+
+* Melanoma
+
+* Prostate cancer
+
+Coming soon: lung, pancreatic, and head & neck
+
+## LDSC
+
+* [Explanation of all annotations used](annotations.html)
+
+* [LDSC on 3 cancer types using above annotations, with clean baseline](clean-baseline.html)
+
+* [LDSC on GTEx gene sets, and ImmGen gene sets for 3 cancers](geneset-ldsc.html)
+
+## Torus + Fine-mapping
+
+* [Initial fine-mapping on 3 cancer types](finemapping.html)
+

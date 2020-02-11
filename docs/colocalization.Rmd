@@ -1,0 +1,102 @@
+---
+title: "GTEx eQTL Colocalization"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+var_to_pos <- function(x){
+  sapply(strsplit(x, split='_'), function(x){paste0(x[1:2],collapse = '_')})
+}
+
+get.cont.table <- function(fsnps, eqtls, rand.snps){
+  
+  n_snps <- length(fsnps)
+  # SNPs in WB
+  in.snps <- length(intersect(fsnps, eqtls))
+  out.snps <- n_snps - in.snps
+
+  in.snps.rand <- length(intersect(rand.snps, eqtls))
+  out.snps.rand <- n_snps - in.snps.rand
+  
+  cont.table <- matrix(c(in.snps, out.snps, in.snps.rand, out.snps.rand), nrow=2, ncol=2)
+  
+  return(cont.table)
+}
+
+```
+
+
+```{r}
+brca.eqtls <- read.delim('../BRCA/BRCA_finemapped_L1_pip0.1_annotated.txt',sep='\t',header=T, stringsAsFactors = F)
+brca.snps <- var_to_pos(brca.eqtls$Variant.ID)
+
+prad.eqtls <- read.delim('../PRAD/PRAD_finemapped_L1_pip0.1_annotated.txt',sep='\t',header=T, stringsAsFactors = F)
+prad.snps <- var_to_pos(prad.eqtls$Variant.ID)
+
+mel.eqtls <- read.delim('../melanoma/MEL_finemapped_L1_pip0.1_annotated.txt',sep='\t',header=T, stringsAsFactors = F)
+mel.snps <- var_to_pos(mel.eqtls$Variant.ID)
+```
+
+```{r}
+#brca.sumstats <- vroom::vroom('../summary_statistics/BRCA_Sumstats_SuSiE_Ready.txt.gz', col_names = T, delim = '\t')
+#prad.sumstats <- vroom::vroom('../summary_statistics/PRAD_Sumstats_SuSiE_Ready.txt.gz', col_names = T, delim = '\t')
+#mel.sumstats <- vroom::vroom('../summary_statistics/Melanoma_Sumstats_SuSiE_Ready.txt.gz', col_names = T, delim = '\t')
+
+#brca.rand <- paste0(sumstats$chr, '_',sumstats$pos)
+#prad.rand <- paste0(sumstats$chr, '_',sumstats$pos)
+#mel.rand <- paste0(sumstats$chr, '_',sumstats$pos)
+brca.random <- read.delim('../BRCA/SNPmatch_150_matchedSNPs_batch1.txt', sep = '\t', header = F, stringsAsFactors = F)
+brca.random <- brca.random[ ,10]
+
+prad.random <- read.delim('../PRAD/SNPmatch_150_matchedSNPs_batch1.txt', sep = '\t', header = F, stringsAsFactors = F)
+prad.random <- prad.random[ ,10]
+
+mel.random <- read.delim('../melanoma/SNPmatch_150_matchedSNPs_batch1.txt', sep = '\t', header = F, stringsAsFactors = F)
+mel.random <- mel.random[ ,10]
+```
+
+
+```{r}
+
+files <- list.files(path = '../GTEx_Analysis_v7_eQTL/', pattern = '*.v7.signif_variant_gene_pairs.txt.gz', full.names = T)
+namez <- sapply(strsplit(basename(files), split = '[.]'), function(x){x[1]})
+gtex.df <- data.frame(brca=rep(0, length(namez)), prad=rep(0, length(namez)), mel=rep(0, length(namez)))
+row.names(gtex.df) <- namez
+
+for(i in 1:length(files)){
+  curr <- namez[i]
+  print(curr)
+  eqtl <- vroom::vroom(files[i], delim = '\t', col_names = T)
+  eqtl.snps <- var_to_pos(eqtl$variant_id)
+  
+  fisher.res <- fisher.test(get.cont.table(brca.snps, eqtl.snps, brca.random))
+  gtex.df[curr, 'brca'] <- fisher.res$p.value
+  
+  fisher.res <- fisher.test(get.cont.table(prad.snps, eqtl.snps, prad.random))
+  gtex.df[curr, 'prad'] <- fisher.res$p.value
+
+  fisher.res <- fisher.test(get.cont.table(mel.snps, eqtl.snps, mel.random))
+  gtex.df[curr, 'mel'] <- fisher.res$p.value
+
+}
+
+```
+
+```{r}
+gtex.df.log <- -log10(gtex.df)
+gtex.df.log$type <- row.names(gtex.df)
+thresh <- -log10(0.05/nrow(gtex.df))
+
+library(reshape2)
+gtex.df.log <- melt(gtex.df.log)
+
+ggplot(gtex.df.log, aes(x=type, y=value, fill=variable)) + geom_bar(stat='identity', position = 'dodge') + geom_hline(yintercept = thresh, color="black", linetype="dashed") + coord_flip() + ylab(expression(-log[10]~pvalue)) + xlab('') + 
+  theme_bw() + 
+  theme(text = element_text(size=14),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(), 
+        legend.position = 'none')
+```
+
