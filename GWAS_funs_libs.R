@@ -7,12 +7,15 @@ suppressMessages(library(rtracklayer))
 suppressMessages(library(biomaRt))
 suppressMessages(library(GenomicRanges))
 
+make_ranges <- function(seqname, start, end){
+  return(GRanges(seqnames = seqname, ranges = IRanges(start = start, end = end)))
+}
+
 # Cleans summary statistics and normalizes them for downstream analysis
-clean_sumstats <- function(sumstats, SNPs, cols.to.keep){
+clean_sumstats <- function(sumstats, cols.to.keep){
   
   stopifnot(!is.null(sumstats))
-  stopifnot(!is.null(SNPs))
-  stopifnot(length(cols.to.keep) == 8)
+  stopifnot(length(cols.to.keep) == 9)
   
   chr <- cols.to.keep[1]
   pos <- cols.to.keep[2]
@@ -22,13 +25,20 @@ clean_sumstats <- function(sumstats, SNPs, cols.to.keep){
   a1 <- cols.to.keep[6]
   rs <- cols.to.keep[7]
   pval <- cols.to.keep[8]
-  colnames(SNPs) <- rs
-  
+  info <- cols.to.keep[9]
+
   # keep SNPs in 1kg
-  sumstats <- inner_join(sumstats, SNPs, by=rs)
+  #sumstats <- inner_join(sumstats, snps.to.keep, by=rs)
   # Extract relevant columns
-  clean.sumstats <- sumstats[ ,c(chr, pos, beta, se, a0, a1, rs, pval)]
-  colnames(clean.sumstats) <- c('chr','pos','beta','se','a0','a1','snp', 'pval')
+  clean.sumstats <- sumstats[ ,c(chr, pos, beta, se, a0, a1, rs, pval, info)]
+  colnames(clean.sumstats) <- c('chr','pos','beta','se','a0','a1','snp', 'pval','info')
+  
+  # filter imputation quality
+  clean.sumstats <- clean.sumstats[!is.na(clean.sumstats$info), ]
+  clean.sumstats <- clean.sumstats[clean.sumstats$info > 0.9, ]
+  
+  # keep SNPs with rs ids
+  clean.sumstats <- clean.sumstats[startsWith(clean.sumstats$snp, 'rs'), ]
   
   clean.sumstats$beta <- as.numeric(clean.sumstats$beta)
   clean.sumstats$se <- as.numeric(clean.sumstats$se)
@@ -72,8 +82,8 @@ assign.ref.alt <- function(df, refGenome, chr, pos, a0, a1){
 assign.locus.snp <- function(cleaned.sumstats, ldBed){
   
   ld <- vroom::vroom(ldBed, col_names = F)
-  ldRanges <- GRanges(seqnames = ld$X1, ranges = IRanges(start = ld$X2, end = ld$X3, names = ld$X4))
-  ldRanges <- plyranges::mutate(ldRanges, locus=names(ldRanges))
+  ldRanges <- make_ranges(ld$X1, ld$X2, ld$X3)
+  ldRanges <- plyranges::mutate(ldRanges, locus=ld$X4)
   
   snpRanges <- GRanges(seqnames = cleaned.sumstats$chr, 
                        ranges   = IRanges(start = cleaned.sumstats$pos, 
@@ -94,8 +104,7 @@ assign.locus.snp <- function(cleaned.sumstats, ldBed){
 # Each annotation gets assigned SNPs based on overlap
 annotator <- function(gwas, annotations){
   
-  snpRanges <- GRanges(seqnames = gwas$chr, 
-                       ranges = IRanges(start = gwas$pos, end = gwas$pos))
+  snpRanges <- make_ranges(gwas$chr, gwas$pos, gwas$pos)
   snpRanges <- plyranges::mutate(snpRanges, snp=gwas$snp)
   
   for(f in annotations){
@@ -118,7 +127,8 @@ merge.bigsnp.gwas <- function(gwas, bigSNP){
   
   matched.gwas <- as_tibble(bigsnpr::snp_match(gwas, 
                                                snp_info, 
-                                               strand_flip = T)) %>% 
+                                               strand_flip = T, 
+                                               match.min.prop = 1)) %>% 
     dplyr::rename(og_index = `_NUM_ID_.ss`) %>% 
     dplyr::rename(bigSNP_index = `_NUM_ID_`) %>%
     mutate(zscore = beta/se)
@@ -127,12 +137,33 @@ merge.bigsnp.gwas <- function(gwas, bigSNP){
   
 }
 
-############## SUSIE 
+prune.regions <- function(sumstats, ref_panel){
+  
+  df_list <- list()
+  r2_thresh <- 0.1
+  for(l in unique(sumstats$locus)){
+    sub.sumstats <- sumstats[sumstats$locus == l, ]
+    
+    topSnpPos <- which.min(sub.sumstats$pval)
+    topSnp <- sub.sumstats$bigSNP_index[topSnpPos]
+    topSnpG <- ref_panel$genotypes[ ,topSnp]
+    G <- ref_panel$genotypes[ , sub.sumstats$bigSNP_index]
+
+    r2 <- as.vector(cor(topSnpG, G, method = 'pearson'))
+    subRegions <- sub.sumstats[r2 > r2_thresh, ]
+    subRegions$r2 <- r2[r2>r2_thresh]
+    df_list[[l]] <- subRegions
+  }
+  return(Reduce(rbind, df_list))
+}
+
+# SUSIE related functions
+
 run.susie <- function(sumstats, ref_panel, ldchunk, L, prior){
   
   sub.sumstats <- sumstats[sumstats$locus == ldchunk, ]
   if(nrow(sub.sumstats) > 1){
-    X <- ref_panel$genotypes[ ,sub.sumstats$bigSNP_index]
+    X <- ref_panel$genotypes[ , sub.sumstats$bigSNP_index]
     X <- scale(X, center = T, scale = T)
     zhat <- sub.sumstats$zscore
     R <- cov2cor((crossprod(X) + tcrossprod(zhat))/nrow(X))
@@ -167,42 +198,43 @@ merge_susie_sumstats <- function(susie_results, sumstats){
   return(sumstats)
 }
 
+# Annotations for causal SNPs 
 
-add.gtex.annotation <- function(sumstats, gtex){
-  
-  stopifnot('chrom' %in% colnames(gtex))
-  stopifnot('position' %in% colnames(gtex))
-  stopifnot('Name' %in% colnames(gtex))
-  stopifnot('Tissue' %in% colnames(gtex))
-  
+add.gtex.annotation <- function(sumstats, gtex, tissue_type=''){
+  stopifnot('chr' %in% colnames(gtex))
+  stopifnot('pos' %in% colnames(gtex))
+  stopifnot('name' %in% colnames(gtex))
+
   # load GTEx v7 significant snp-gene pairs
-  gtex$id <- paste0(gtex$chrom, '_', gtex$position)
-  gtex <- gtex[, c('id', 'Name','Tissue')]
-  sumstats$id <- paste0(sumstats$chr, '_', sumstats$pos)
+  gtex$var_id <- paste0(gtex$chr, '_', gtex$pos)
+  gtex <- gtex[, c('var_id', 'name')]
+  sumstats$var_id <- paste0(sumstats$chr, '_', sumstats$pos)
   
   # first left join, to get annotations of fine-mapped snps
-  annot.sumstats <- left_join(x = sumstats, y = gtex, by='id')
+  annot.sumstats <- left_join(x = sumstats, y = gtex, by='var_id')
   # collapse annotation into one
-  annots <- annot.sumstats %>% group_by(id) %>% summarise(eGenes = paste(unique(Name), collapse = '\n'), Tissues=paste(unique(Tissue), collapse = '\n'))
+  annots <- annot.sumstats %>% group_by(var_id) %>% summarise(!!tissue_type := paste(unique(name), collapse = '\n'))
   # join again to get original df with new annotation
-  annot.sumstats <- inner_join(sumstats, annots, by = 'id') %>% dplyr::select(-id)
+  annot.sumstats <- inner_join(sumstats, annots, by = 'var_id') %>% dplyr::select(-var_id)
   
   return(annot.sumstats)
-  
 }
 
 
-add.nearby.gene <- function(sumstats, gene.ranges){
+add.nearby.gene <- function(sumstats, gene.df, dist = 10000, gene_type){
+  
+  gene.ranges <- make_ranges(gene.df$chr, gene.df$start, gene.df$end)
+  gene.ranges <- plyranges::mutate(gene.ranges, name=gene.df$gene)
   
   snp.ranges <- GRanges(seqnames = sumstats$chr, 
                                ranges = IRanges(start = sumstats$pos, 
                                                 end   = sumstats$pos))
   snp.ranges <- plyranges::mutate(snp.ranges, snp = sumstats$snp)
   
-  nearby.genes <- plyranges::join_overlap_inner(gene.ranges, snp.ranges, maxgap=10000) %>%
+  nearby.genes <- plyranges::join_overlap_inner(gene.ranges, snp.ranges, maxgap=dist) %>%
     as_tibble() %>%
     group_by(snp) %>%
-    summarise(nearby_genes = paste(name, collapse='\n'))
+    summarise(!!gene_type := paste(name, collapse='\n'))
   
   annot.sumstats <- left_join(sumstats, nearby.genes, by='snp')
   return(annot.sumstats)
@@ -216,14 +248,93 @@ add.consequence <- function(sumstats){
   snp.mart <- useMart(biomart = "ENSEMBL_MART_SNP",
                       dataset = "hsapiens_snp")
   
-  result <- getBM(attributes = c("refsnp_id","consequence_type_tv"),
-                  filters    = "snp_filter", 
-                  values     = snp.list, 
-                  mart       = snp.mart) %>% as_tibble %>% group_by(refsnp_id) %>% summarise(consequence = paste0(consequence_type_tv, collapse = '\n'))
+  result <- suppressMessages(getBM(attributes = c("refsnp_id","consequence_type_tv"),
+                                  filters    = "snp_filter", 
+                                  values     = snp.list, 
+                                 mart       = snp.mart) %>% as_tibble %>% group_by(refsnp_id) %>% summarise(consequence = paste0(consequence_type_tv, collapse = ';\n'))
+  )
+  
   colnames(result) <- c('snp', 'consequence')
   annot.sumstats <- left_join(sumstats, result, by='snp')
   return(annot.sumstats)
 }
 
 
+add.gwas_catalog <- function(sumstats, gwas){
 
+  gwas <- gwas[ , c('SNPS','DISEASE/TRAIT')]
+  colnames(gwas) <- c('snp','other_gwas_trait')
+
+  annot.sumstats <- left_join(sumstats, gwas, by='snp') %>% 
+    group_by(snp) %>% 
+    summarise(gwas_catalog = paste0(unique(other_gwas_trait), collapse=';\n'))
+  
+  sumstats <- left_join(sumstats, annot.sumstats, by='snp')
+  return(sumstats)
+}
+
+
+
+
+# Hi-C related functions
+
+# HiC data obtained from 
+# Jung I, Schmitt A, Diao Y, Lee AJ et al. A compendium of promoter-centered long-range chromatin interactions in the human genome. Nat Genet 2019
+# does not contain genes for the promoters
+# This function assigns genes to the promoters
+promoters_to_genes <- function(hic, gene_cords){
+  
+  stopifnot('chr_prom' %in% colnames(hic))
+  stopifnot('start_prom' %in% colnames(hic))
+  stopifnot('end_prom' %in% colnames(hic))
+  
+  stopifnot('chr' %in% colnames(gene_cords))
+  stopifnot('start' %in% colnames(gene_cords))
+  stopifnot('end' %in% colnames(gene_cords))
+  
+  # Maps Genes to Promoters 
+  # GRanges object for promoters
+  promoter_df <- hic[ , c('chr_prom','start_prom','end_prom')] %>% dplyr::distinct() # keep unique promoters
+  promoter.ranges <- make_ranges(promoter_df$chr_prom, promoter_df$start_prom, promoter_df$end_prom)
+  promoter.ranges <- plyranges::mutate(promoter.ranges, 
+                                       promoter_id = paste0(promoter_df$chr_prom,'_',promoter_df$start_prom,'_',promoter_df$end_prom))
+  
+  # GRanges object for gene TSS
+  ## a genes promoter should be 2kb upstream and 1kb downstream of gene TSS
+  gene.ranges <- make_ranges(gene_cords$chr, gene_cords$start - 2000, gene_cords$start + 1000)
+  gene.ranges <- plyranges::mutate(gene.ranges, gene=gene_cords$gene)
+  
+  # overlap to get promoter - gene dictionary
+  promoter.genes.link <- plyranges::join_overlap_inner(gene.ranges, promoter.ranges)
+  promoter.genes.link <- as_tibble(promoter.genes.link) %>% dplyr::select(c(gene, promoter_id))
+  
+  # add gene to original hic data
+  hic$promoter_id <- paste0(hic$chr_prom,'_',hic$start_prom,'_',hic$end_prom)
+  hic_with_gene <- inner_join(x = hic, y=promoter.genes.link, by='promoter_id')
+  
+  return(hic_with_gene)
+}
+
+compute_gene_pip <- function(sumstats, hic_with_genes){
+  
+  stopifnot('chr_enh' %in% colnames(hic_with_genes))
+  stopifnot('start_enh' %in% colnames(hic_with_genes))
+  stopifnot('end_enh' %in% colnames(hic_with_genes))
+  
+  # Map SNPs to Genes via Enhancers
+  enhancer.ranges <- make_ranges(hic_with_genes$chr_enh, hic_with_genes$start_enh, hic_with_genes$end_enh)
+  enhancer.ranges <- plyranges::mutate(enhancer.ranges, gene = hic_with_genes$gene)
+  enhancer.ranges <- plyranges::mutate(enhancer.ranges, 
+                                       enhancer_id = paste0(hic_with_genes$chr_enh,'_', hic_with_genes$start_enh,'_',hic_with_genes$end_enh))
+
+  snp.ranges <- make_ranges(sumstats$chr, sumstats$pos, sumstats$pos)
+  snp.ranges <- plyranges::mutate(snp.ranges, snp=sumstats$snp, susie_pip=sumstats$susie_pip)
+  
+  hic.snp.intersect <- plyranges::join_overlap_intersect(snp.ranges, enhancer.ranges)
+  gene_pip <- as_tibble(hic.snp.intersect) %>% group_by(gene) %>% summarise(PIP = sum(susie_pip))
+  
+  return(gene_pip)
+  
+}
+
+  

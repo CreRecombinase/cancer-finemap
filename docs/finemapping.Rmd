@@ -6,13 +6,14 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 source('../trackplot.R')
+source('../GWAS_funs_libs.R')
 library(ggplot2)
 library(kableExtra)
 ```
 
 ***
 
-Fine-mapping was done on several cancer types. Prior weights were obtained from TORUS. I selected all LD blocks that have an FDR $\leq 10$% based on the q-values from TORUS. I used `L = 2` for fine-mapping with `susie_rss()` which works on out-of-sample LD.
+Fine-mapping was done on several cancer types. Prior weights were obtained from TORUS. I selected all LD blocks that have an FDR $\leq 10$% based on the q-values from TORUS. I used `L = 1` for fine-mapping with `susie_rss()` which works on out-of-sample LD.
 
 The SNP covariance matrix was estimated as follows as adviced by Yuxin:
 
@@ -47,15 +48,13 @@ ggplot(torus, aes(x=V1, y=V2)) +
 
 
 ```{r}
-source('../GWAS_funs_libs.R')
 
-load('../BRCA/BRCA_susie_L1.Robj')
+load('../BRCA_susie_L1.Robj')
 susie.res <- susie_res
-load('../BRCA/BRCA_susie_L1_UNIFORM.Robj')
+load('../BRCA_susie_L1_UNIFORM.Robj')
 susie.res.unif <- susie_res
 
-
-sumstats <- as_tibble(data.table::fread('../../SUMMARY_STATISTICS/susie_ready/BRCA_Sumstats_SuSiE_Ready.txt.gz', sep = '\t', header = T))
+sumstats <- as_tibble(data.table::fread('~/GERMLINE/SUMMARY_STATISTICS/susie/BRCA_Sumstats_SuSiE_Ready.txt.gz', sep = '\t', header = T))
 
 merged.sumstats <- merge_susie_sumstats(susie.res, sumstats)
 merged.sumstats.unif <- merge_susie_sumstats(susie.res.unif, sumstats)
@@ -78,78 +77,68 @@ pip_df <- data.frame(pip = merged.sumstats$susie_pip, pip_uniform = merged.sumst
 ggplot(pip_df, aes(x=pip_uniform, y=pip)) + geom_point() + geom_abline(slope = 1, color='red') + xlab('PIP (uniform)') + ylab('PIP')
 ```
 
-### SNPs with PIP > 0.05
+### Annotate SNPs with PIP > 0.1
+
+Add functional annotation used in Torus
 
 ```{r}
+top.snps <- merged.sumstats[merged.sumstats$susie_pip > 0.1 & merged.sumstats$CS == 1, ]
 
-top.snps <- merged.sumstats[merged.sumstats$susie_pip > 0.05 & merged.sumstats$CS == 1, ]
+annot.df <- suppressMessages(vroom::vroom('~/GERMLINE/SUMMARY_STATISTICS/torus/BRCA_Torus_annotations.txt.gz', col_names = T))
+annot.df <- annot.df[annot.df$snp %in% top.snps$snp, ]
+annot.df$merged <- apply(annot.df, MARGIN = 1, FUN = function(x){return(paste0(names(x)[which(x==1)], collapse = '\n'))})
 
-annotations <- c('Cancer_Drivers.bed','BRCA_OCRs.bed','Conserved_LindbladToh.bed','BRCA_ac.bed','Immune_OCRs.bed','Immune_h3k27ac.bed')
-annotations <- paste0('~/GERMLINE/ANNOTATIONS/BRCA_run/',annotations)
-
-top.snps <- annotator(top.snps, annotations)
-annot.names <- colnames(top.snps)[16:ncol(top.snps)]
-
-for(i in 1:nrow(top.snps)){
-  x <- which(top.snps[i, annot.names] == 1)
-  if(length(x)>0){
-    clean.names <- sapply(strsplit(annot.names[x], split='[.]'), function(x){return(x[1])})
-    top.snps[i, 'category'] <- paste(clean.names,collapse = '\n')
-  }
-  else{
-    top.snps[i, 'category'] <- 'Other'
-  }
-}
-
-
+top.snps <- inner_join(top.snps, annot.df[ ,c("snp","merged")], by = "snp")
 ```
 
-Add nearby genes
+Add gene innformation (nearby gene, drivers, immune genes)
 
 ```{r}
-genes <- rtracklayer::import('~/GERMLINE/refGenome/GENES_COORDs_b37.txt', format='bed')
-top.snps <- add.nearby.gene(top.snps, genes)
+# add regular genes
+genes <- suppressMessages(vroom::vroom('~/GERMLINE/refGenome/GENES_COORDs_b37.txt', col_names = T))
+top.snps <- add.nearby.gene(top.snps, genes, dist=10000, gene_type='nearby_gene')
+
+# add drivers
+drivers <- readLines('~/GERMLINE/ANNOTATIONS/cancer_driver_genes/AllDrivers_FDR_0.10.txt')
+top.snps <- add.nearby.gene(top.snps, genes[genes$gene %in% drivers, ], dist = 100000, gene_type='nearby_driver')
 ```
 
-Add GTEx annotation
+Add eQTL information
 
 ```{r}
-gtex <- suppressMessages(vroom::vroom('~/GERMLINE/GTEx/all_tissue_signif_pairs.txt.gz', col_names = T, delim = '\t'))
+gtex <- suppressMessages(vroom::vroom('~/GERMLINE/GTEx_Analysis_v7_eQTL/Breast_Mammary_var_genes.txt.gz', col_names = T, delim = '\t'))
+top.snps <- add.gtex.annotation(top.snps, gtex, tissue_type = 'breast_gtex_eGenes')
 
-top.snps <- add.gtex.annotation(top.snps, gtex)
+gtex <- suppressMessages(vroom::vroom('~/GERMLINE/GTEx_Analysis_v7_eQTL/Whole_Blood_var_genes.txt.gz', col_names = T, delim = '\t'))
+top.snps <- add.gtex.annotation(top.snps, gtex, tissue_type = 'whole_blood_gtex_eGenes')
 ```
+
+Add SNP consequence 
 
 ```{r}
 top.snps <- add.consequence(top.snps)
 ```
 
+```{r}
+gwas <- suppressMessages(vroom::vroom('../../GWAS_catalog/gwas_catalog_v1.0-associations_e98_r2020-02-08.tsv',col_names = T))
+top.snps <- add.gwas_catalog(top.snps, gwas)
+```
+
+
 #### Annotated Table
 
 ```{r}
-top.snps.kable <- top.snps[ , c('snp', 'nearby_genes','eGenes','Tissues','consequence','zscore','susie_pip', 'category', 'locus','CS')]
-colnames(top.snps.kable) <- c('SNP','Nearby Genes','eGenes','Tissues','Consequence','ZScore','PIP','Annotation', 'Locus', 'CS')
+top.snps.kable <- top.snps[ , c('snp', 'nearby_gene','nearby_driver','breast_gtex_eGenes','whole_blood_gtex_eGenes','consequence','zscore','susie_pip', 'merged','gwas_catalog' ,'locus')]
+colnames(top.snps.kable) <- c('SNP','Nearby Genes (10kb)','Nearby Drivers (100kb)','Breast eGenes','Whole-Blood eGenes','Consequence','ZScore','PIP','Annotation','GWAS Catalog','Locus')
 top.snps.kable <- top.snps.kable[order(abs(top.snps.kable$PIP), decreasing = T), ]
 kable(top.snps.kable) %>% 
   kable_styling(bootstrap_options = c("striped", "hover", "condensed")) %>% 
   scroll_box(width = "100%", height = "600px")
 ```
 
-#### Annotated Table (Immune only)
-
-```{r}
-kable(top.snps.kable[top.snps.kable$Annotation=='Immune_OCRs\nImmune_h3k27ac', ]) %>% 
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed")) %>% 
-  scroll_box(width = "100%", height = "600px")
-```
 
 ```{r}
 write.table(top.snps.kable, file = '../BRCA/BRCA_finemapped_L1_pip0.1_annotated.txt', sep='\t', col.names = T, row.names = F, quote = F)
 ```
-
-
-
-
-
-
 
 
