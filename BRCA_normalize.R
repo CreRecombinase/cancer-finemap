@@ -5,18 +5,15 @@ source('GWAS_funs_libs.R')
 ## Normalization
 brca.gwas <- vroom::vroom('../SUMMARY_STATISTICS/brca_raw_onco2_sumstats.txt.gz', delim = '\t', col_names = T)
 bigsnp.1kg <- snp_attach(rdsfile = '~/GERMLINE/1000G/EUR_variable_1kg.rds')
-snplist <- vroom::vroom('~/GERMLINE/1000G/1kg_snp_list.txt.gz', delim = '\n', col_names = F)
+#snplist <- vroom::vroom('~/GERMLINE/1000G/1kg_snp_list.txt.gz', delim = '\n', col_names = F)
 # re-name columns
 # compute z-scores
 # filter INFO < 0.9
-# keep SNPs with rsIDs in 1000G
 cleaned.brca.gwas <- clean_sumstats(sumstats = brca.gwas,
-                                    snps.to.keep = snplist,
                                     cols.to.keep = c('chr','position_b37','bcac_onco2_beta','bcac_onco2_se','a0','a1','rsIDs','bcac_onco2_P1df_Wald','bcac_onco2_r2'))
 
 # match to reference panel
 cleaned.brca.gwas <- merge.bigsnp.gwas(cleaned.brca.gwas, bigsnp.1kg)
-
 
 # assign each snp to an LD block
 cleaned.brca.gwas <- assign.locus.snp(cleaned.sumstats = cleaned.brca.gwas, ldBed = '../ANNOTATIONS/Euro_LD_Chunks.bed')
@@ -66,6 +63,13 @@ vroom::vroom_write(cleaned.brca.gwas,
                    col_names = T, 
                    path = '../SUMMARY_STATISTICS/BRCA_Sumstats_SuSiE_Ready.txt.gz')
 
-
 # run susie on computing cluster
+
+
+wb <- vroom::vroom('~/GERMLINE/GTEx_Analysis_v7_eQTL/Breast_Mammary_Tissue.txt',col_names = F, delim = "\t")
+colnames(wb) <- c("chr","pos","a1","a2","id")
+
+wb.join <- inner_join(wb, id_name, by="id")
+vroom::vroom_write(wb.join, path = '../GTEx_Analysis_v7_eQTL/Breast_Mammary_var_genes.txt.gz', col_names = T, delim = '\t')
+
 

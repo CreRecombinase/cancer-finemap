@@ -404,9 +404,9 @@ ggplot(torus, aes(x=V1, y=V2)) +
   ylab(&#39;log Odds Ratio&#39;) + 
   xlab(&#39;Category&#39;)</code></pre>
 <p><img src="finemapping_files/figure-html/unnamed-chunk-1-1.png" width="672" /></p>
-<pre class="r"><code>load(&#39;../BRCA_susie_L1.Robj&#39;)
+<pre class="r"><code>load(&#39;../BRCA/BRCA_susie_L1.Robj&#39;)
 susie.res &lt;- susie_res
-load(&#39;../BRCA_susie_L1_UNIFORM.Robj&#39;)
+load(&#39;../BRCA/BRCA_susie_L1_UNIFORM.Robj&#39;)
 susie.res.unif &lt;- susie_res
 
 sumstats &lt;- as_tibble(data.table::fread(&#39;~/GERMLINE/SUMMARY_STATISTICS/susie/BRCA_Sumstats_SuSiE_Ready.txt.gz&#39;, sep = &#39;\t&#39;, header = T))
@@ -455,6 +455,7 @@ gtex &lt;- suppressMessages(vroom::vroom(&#39;~/GERMLINE/GTEx_Analysis_v7_eQTL/W
 top.snps &lt;- add.gtex.annotation(top.snps, gtex, tissue_type = &#39;whole_blood_gtex_eGenes&#39;)</code></pre>
 <p>Add SNP consequence</p>
 <pre class="r"><code>top.snps &lt;- add.consequence(top.snps)</code></pre>
+<p>Add GWAS catalog annotation</p>
 <pre class="r"><code>gwas &lt;- suppressMessages(vroom::vroom(&#39;../../GWAS_catalog/gwas_catalog_v1.0-associations_e98_r2020-02-08.tsv&#39;,col_names = T))
 top.snps &lt;- add.gwas_catalog(top.snps, gwas)</code></pre>
 <div id="annotated-table" class="section level4">

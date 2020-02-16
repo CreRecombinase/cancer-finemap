@@ -49,9 +49,9 @@ ggplot(torus, aes(x=V1, y=V2)) +
 
 ```{r}
 
-load('../BRCA_susie_L1.Robj')
+load('../BRCA/BRCA_susie_L1.Robj')
 susie.res <- susie_res
-load('../BRCA_susie_L1_UNIFORM.Robj')
+load('../BRCA/BRCA_susie_L1_UNIFORM.Robj')
 susie.res.unif <- susie_res
 
 sumstats <- as_tibble(data.table::fread('~/GERMLINE/SUMMARY_STATISTICS/susie/BRCA_Sumstats_SuSiE_Ready.txt.gz', sep = '\t', header = T))
@@ -118,6 +118,8 @@ Add SNP consequence
 ```{r}
 top.snps <- add.consequence(top.snps)
 ```
+
+Add GWAS catalog annotation
 
 ```{r}
 gwas <- suppressMessages(vroom::vroom('../../GWAS_catalog/gwas_catalog_v1.0-associations_e98_r2020-02-08.tsv',col_names = T))
