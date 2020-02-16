@@ -3,8 +3,6 @@ suppressMessages(library(tidyverse))
 suppressMessages(library(bigsnpr))
 suppressMessages(library(susieR))
 suppressMessages(library(ggplot2))
-suppressMessages(library(rtracklayer))
-suppressMessages(library(biomaRt))
 suppressMessages(library(GenomicRanges))
 
 make_ranges <- function(seqname, start, end){
@@ -110,7 +108,7 @@ annotator <- function(gwas, annotations){
   for(f in annotations){
     
     name <- paste0(basename(f),'_d')
-    curr <- import(f, format='bed')
+    curr <- rtracklayer::import(f, format='bed')
     subdf <- subsetByOverlaps(snpRanges, curr)
     snpsIn <- unique(subdf$snp)
     
@@ -129,8 +127,8 @@ merge.bigsnp.gwas <- function(gwas, bigSNP){
                                                snp_info, 
                                                strand_flip = T, 
                                                match.min.prop = 1)) %>% 
-    dplyr::rename(og_index = `_NUM_ID_.ss`) %>% 
-    dplyr::rename(bigSNP_index = `_NUM_ID_`) %>%
+    rename(og_index = `_NUM_ID_.ss`) %>% 
+    rename(bigSNP_index = `_NUM_ID_`) %>%
     mutate(zscore = beta/se)
   
   return(matched.gwas)
@@ -215,7 +213,7 @@ add.gtex.annotation <- function(sumstats, gtex, tissue_type=''){
   # collapse annotation into one
   annots <- annot.sumstats %>% group_by(var_id) %>% summarise(!!tissue_type := paste(unique(name), collapse = '\n'))
   # join again to get original df with new annotation
-  annot.sumstats <- inner_join(sumstats, annots, by = 'var_id') %>% dplyr::select(-var_id)
+  annot.sumstats <- inner_join(sumstats, annots, by = 'var_id') %>% select(-var_id)
   
   return(annot.sumstats)
 }
@@ -245,13 +243,13 @@ add.consequence <- function(sumstats){
   stopifnot('snp' %in% colnames(sumstats))
   
   snp.list <- sumstats$snp
-  snp.mart <- useMart(biomart = "ENSEMBL_MART_SNP",
-                      dataset = "hsapiens_snp")
+  snp.mart <- biomaRt::useMart(biomart = "ENSEMBL_MART_SNP",
+                               dataset = "hsapiens_snp")
   
-  result <- suppressMessages(getBM(attributes = c("refsnp_id","consequence_type_tv"),
-                                  filters    = "snp_filter", 
-                                  values     = snp.list, 
-                                 mart       = snp.mart) %>% as_tibble %>% group_by(refsnp_id) %>% summarise(consequence = paste0(consequence_type_tv, collapse = ';\n'))
+  result <- suppressMessages(biomaRt::getBM(attributes = c("refsnp_id","consequence_type_tv"),
+                                            filters    = "snp_filter", 
+                                            values     = snp.list, 
+                                            mart       = snp.mart) %>% as_tibble %>% group_by(refsnp_id) %>% summarise(consequence = paste0(consequence_type_tv, collapse = ';\n'))
   )
   
   colnames(result) <- c('snp', 'consequence')
@@ -294,7 +292,7 @@ promoters_to_genes <- function(hic, gene_cords){
   
   # Maps Genes to Promoters 
   # GRanges object for promoters
-  promoter_df <- hic[ , c('chr_prom','start_prom','end_prom')] %>% dplyr::distinct() # keep unique promoters
+  promoter_df <- hic[ , c('chr_prom','start_prom','end_prom')] %>% distinct() # keep unique promoters
   promoter.ranges <- make_ranges(promoter_df$chr_prom, promoter_df$start_prom, promoter_df$end_prom)
   promoter.ranges <- plyranges::mutate(promoter.ranges, 
                                        promoter_id = paste0(promoter_df$chr_prom,'_',promoter_df$start_prom,'_',promoter_df$end_prom))
@@ -306,7 +304,7 @@ promoters_to_genes <- function(hic, gene_cords){
   
   # overlap to get promoter - gene dictionary
   promoter.genes.link <- plyranges::join_overlap_inner(gene.ranges, promoter.ranges)
-  promoter.genes.link <- as_tibble(promoter.genes.link) %>% dplyr::select(c(gene, promoter_id))
+  promoter.genes.link <- as_tibble(promoter.genes.link) %>% select(c(gene, promoter_id))
   
   # add gene to original hic data
   hic$promoter_id <- paste0(hic$chr_prom,'_',hic$start_prom,'_',hic$end_prom)

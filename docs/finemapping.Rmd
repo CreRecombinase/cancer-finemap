@@ -86,8 +86,9 @@ top.snps <- merged.sumstats[merged.sumstats$susie_pip > 0.1 & merged.sumstats$CS
 
 annot.df <- suppressMessages(vroom::vroom('~/GERMLINE/SUMMARY_STATISTICS/torus/BRCA_Torus_annotations.txt.gz', col_names = T))
 annot.df <- annot.df[annot.df$snp %in% top.snps$snp, ]
-annot.df$merged <- apply(annot.df, MARGIN = 1, FUN = function(x){return(paste0(names(x)[which(x==1)], collapse = '\n'))})
+colnames(annot.df) <- gsub(colnames(annot.df), pattern = '.bed_d', replacement = '') # clean up annotation names
 
+annot.df$merged <- apply(annot.df, MARGIN = 1, FUN = function(x){return(paste0(names(x)[which(x==1)], collapse = ';\n'))})
 top.snps <- inner_join(top.snps, annot.df[ ,c("snp","merged")], by = "snp")
 ```
 
@@ -130,6 +131,7 @@ top.snps <- add.gwas_catalog(top.snps, gwas)
 #### Annotated Table
 
 ```{r}
+top.snps <- top.snps %>% replace(. == 'NA' | is.na(.), '')
 top.snps.kable <- top.snps[ , c('snp', 'nearby_gene','nearby_driver','breast_gtex_eGenes','whole_blood_gtex_eGenes','consequence','zscore','susie_pip', 'merged','gwas_catalog' ,'locus')]
 colnames(top.snps.kable) <- c('SNP','Nearby Genes (10kb)','Nearby Drivers (100kb)','Breast eGenes','Whole-Blood eGenes','Consequence','ZScore','PIP','Annotation','GWAS Catalog','Locus')
 top.snps.kable <- top.snps.kable[order(abs(top.snps.kable$PIP), decreasing = T), ]
