@@ -94,6 +94,8 @@ top.snps <- inner_join(top.snps, annot.df[ ,c("snp","merged")], by = "snp")
 
 Add gene innformation (nearby gene, drivers, immune genes)
 
+Immune genes were obtained from GO db (using immune response GO term)
+
 ```{r}
 # add regular genes
 genes <- suppressMessages(vroom::vroom('~/GERMLINE/refGenome/GENES_COORDs_b37.txt', col_names = T))
@@ -102,6 +104,10 @@ top.snps <- add.nearby.gene(top.snps, genes, dist=10000, gene_type='nearby_gene'
 # add drivers
 drivers <- readLines('~/GERMLINE/ANNOTATIONS/cancer_driver_genes/AllDrivers_FDR_0.10.txt')
 top.snps <- add.nearby.gene(top.snps, genes[genes$gene %in% drivers, ], dist = 100000, gene_type='nearby_driver')
+
+# immune genes
+immune.genes <- suppressMessages(vroom::vroom('~/GERMLINE/refGenome/immune_genes_cords.txt', col_names = T))
+top.snps <- add.nearby.gene(top.snps, immune.genes, dist = 10000, gene_type='nearby_immune')
 ```
 
 Add eQTL information
@@ -132,8 +138,8 @@ top.snps <- add.gwas_catalog(top.snps, gwas)
 
 ```{r}
 top.snps <- top.snps %>% replace(. == 'NA' | is.na(.), '')
-top.snps.kable <- top.snps[ , c('snp', 'nearby_gene','nearby_driver','breast_gtex_eGenes','whole_blood_gtex_eGenes','consequence','zscore','susie_pip', 'merged','gwas_catalog' ,'locus')]
-colnames(top.snps.kable) <- c('SNP','Nearby Genes (10kb)','Nearby Drivers (100kb)','Breast eGenes','Whole-Blood eGenes','Consequence','ZScore','PIP','Annotation','GWAS Catalog','Locus')
+top.snps.kable <- top.snps[ , c('snp', 'nearby_gene','nearby_driver','nearby_immune','breast_gtex_eGenes','whole_blood_gtex_eGenes','consequence','zscore','susie_pip', 'merged','gwas_catalog' ,'locus')]
+colnames(top.snps.kable) <- c('SNP','Nearby Genes (10kb)','Nearby Drivers (100kb)','Nearby Immune Gene (10kb)','Breast eGenes','Whole-Blood eGenes','Consequence','ZScore','PIP','Annotation','GWAS Catalog','Locus')
 top.snps.kable <- top.snps.kable[order(abs(top.snps.kable$PIP), decreasing = T), ]
 kable(top.snps.kable) %>% 
   kable_styling(bootstrap_options = c("striped", "hover", "condensed")) %>% 

@@ -142,7 +142,7 @@ prune.regions <- function(sumstats, ref_panel){
   for(l in unique(sumstats$locus)){
     sub.sumstats <- sumstats[sumstats$locus == l, ]
     
-    topSnpPos <- which.min(sub.sumstats$pval)
+    topSnpPos <- which.max(sub.sumstats$susie_pip)
     topSnp <- sub.sumstats$bigSNP_index[topSnpPos]
     topSnpG <- ref_panel$genotypes[ ,topSnp]
     G <- ref_panel$genotypes[ , sub.sumstats$bigSNP_index]
@@ -213,7 +213,7 @@ add.gtex.annotation <- function(sumstats, gtex, tissue_type=''){
   # collapse annotation into one
   annots <- annot.sumstats %>% group_by(var_id) %>% summarise(!!tissue_type := paste(unique(name), collapse = '\n'))
   # join again to get original df with new annotation
-  annot.sumstats <- inner_join(sumstats, annots, by = 'var_id') %>% select(-var_id)
+  annot.sumstats <- inner_join(sumstats, annots, by = 'var_id') %>% dplyr::select(-var_id)
   
   return(annot.sumstats)
 }
@@ -304,7 +304,7 @@ promoters_to_genes <- function(hic, gene_cords){
   
   # overlap to get promoter - gene dictionary
   promoter.genes.link <- plyranges::join_overlap_inner(gene.ranges, promoter.ranges)
-  promoter.genes.link <- as_tibble(promoter.genes.link) %>% select(c(gene, promoter_id))
+  promoter.genes.link <- as_tibble(promoter.genes.link) %>% dplyr::select(c(gene, promoter_id))
   
   # add gene to original hic data
   hic$promoter_id <- paste0(hic$chr_prom,'_',hic$start_prom,'_',hic$end_prom)
@@ -335,4 +335,4 @@ compute_gene_pip <- function(sumstats, hic_with_genes){
   
 }
 
-  
+

@@ -441,13 +441,18 @@ colnames(annot.df) &lt;- gsub(colnames(annot.df), pattern = &#39;.bed_d&#39;, re
 annot.df$merged &lt;- apply(annot.df, MARGIN = 1, FUN = function(x){return(paste0(names(x)[which(x==1)], collapse = &#39;;\n&#39;))})
 top.snps &lt;- inner_join(top.snps, annot.df[ ,c(&quot;snp&quot;,&quot;merged&quot;)], by = &quot;snp&quot;)</code></pre>
 <p>Add gene innformation (nearby gene, drivers, immune genes)</p>
+<p>Immune genes were obtained from GO db (using immune response GO term)</p>
 <pre class="r"><code># add regular genes
 genes &lt;- suppressMessages(vroom::vroom(&#39;~/GERMLINE/refGenome/GENES_COORDs_b37.txt&#39;, col_names = T))
 top.snps &lt;- add.nearby.gene(top.snps, genes, dist=10000, gene_type=&#39;nearby_gene&#39;)
 
 # add drivers
 drivers &lt;- readLines(&#39;~/GERMLINE/ANNOTATIONS/cancer_driver_genes/AllDrivers_FDR_0.10.txt&#39;)
-top.snps &lt;- add.nearby.gene(top.snps, genes[genes$gene %in% drivers, ], dist = 100000, gene_type=&#39;nearby_driver&#39;)</code></pre>
+top.snps &lt;- add.nearby.gene(top.snps, genes[genes$gene %in% drivers, ], dist = 100000, gene_type=&#39;nearby_driver&#39;)
+
+# immune genes
+immune.genes &lt;- suppressMessages(vroom::vroom(&#39;~/GERMLINE/refGenome/immune_genes_cords.txt&#39;, col_names = T))
+top.snps &lt;- add.nearby.gene(top.snps, immune.genes, dist = 10000, gene_type=&#39;nearby_immune&#39;)</code></pre>
 <p>Add eQTL information</p>
 <pre class="r"><code>gtex &lt;- suppressMessages(vroom::vroom(&#39;~/GERMLINE/GTEx_Analysis_v7_eQTL/Breast_Mammary_var_genes.txt.gz&#39;, col_names = T, delim = &#39;\t&#39;))
 top.snps &lt;- add.gtex.annotation(top.snps, gtex, tissue_type = &#39;breast_gtex_eGenes&#39;)
@@ -462,8 +467,8 @@ top.snps &lt;- add.gwas_catalog(top.snps, gwas)</code></pre>
 <div id="annotated-table" class="section level4">
 <h4>Annotated Table</h4>
 <pre class="r"><code>top.snps &lt;- top.snps %&gt;% replace(. == &#39;NA&#39; | is.na(.), &#39;&#39;)
-top.snps.kable &lt;- top.snps[ , c(&#39;snp&#39;, &#39;nearby_gene&#39;,&#39;nearby_driver&#39;,&#39;breast_gtex_eGenes&#39;,&#39;whole_blood_gtex_eGenes&#39;,&#39;consequence&#39;,&#39;zscore&#39;,&#39;susie_pip&#39;, &#39;merged&#39;,&#39;gwas_catalog&#39; ,&#39;locus&#39;)]
-colnames(top.snps.kable) &lt;- c(&#39;SNP&#39;,&#39;Nearby Genes (10kb)&#39;,&#39;Nearby Drivers (100kb)&#39;,&#39;Breast eGenes&#39;,&#39;Whole-Blood eGenes&#39;,&#39;Consequence&#39;,&#39;ZScore&#39;,&#39;PIP&#39;,&#39;Annotation&#39;,&#39;GWAS Catalog&#39;,&#39;Locus&#39;)
+top.snps.kable &lt;- top.snps[ , c(&#39;snp&#39;, &#39;nearby_gene&#39;,&#39;nearby_driver&#39;,&#39;nearby_immune&#39;,&#39;breast_gtex_eGenes&#39;,&#39;whole_blood_gtex_eGenes&#39;,&#39;consequence&#39;,&#39;zscore&#39;,&#39;susie_pip&#39;, &#39;merged&#39;,&#39;gwas_catalog&#39; ,&#39;locus&#39;)]
+colnames(top.snps.kable) &lt;- c(&#39;SNP&#39;,&#39;Nearby Genes (10kb)&#39;,&#39;Nearby Drivers (100kb)&#39;,&#39;Nearby Immune Gene (10kb)&#39;,&#39;Breast eGenes&#39;,&#39;Whole-Blood eGenes&#39;,&#39;Consequence&#39;,&#39;ZScore&#39;,&#39;PIP&#39;,&#39;Annotation&#39;,&#39;GWAS Catalog&#39;,&#39;Locus&#39;)
 top.snps.kable &lt;- top.snps.kable[order(abs(top.snps.kable$PIP), decreasing = T), ]
 kable(top.snps.kable) %&gt;% 
   kable_styling(bootstrap_options = c(&quot;striped&quot;, &quot;hover&quot;, &quot;condensed&quot;)) %&gt;% 
@@ -480,6 +485,9 @@ Nearby Genes (10kb)
 </th>
 <th style="text-align:left;position: sticky; top:0; background-color: #FFFFFF;">
 Nearby Drivers (100kb)
+</th>
+<th style="text-align:left;position: sticky; top:0; background-color: #FFFFFF;">
+Nearby Immune Gene (10kb)
 </th>
 <th style="text-align:left;position: sticky; top:0; background-color: #FFFFFF;">
 Breast eGenes
@@ -522,6 +530,8 @@ rs78540526
 </td>
 <td style="text-align:left;">
 </td>
+<td style="text-align:left;">
+</td>
 <td style="text-align:right;">
 -15.407966
 </td>
@@ -544,6 +554,8 @@ rs10941679
 </td>
 <td style="text-align:left;">
 RP11-503D12.1 RN7SL383P
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -583,6 +595,8 @@ PHLDA3
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
 missense_variant
 </td>
 <td style="text-align:right;">
@@ -616,6 +630,8 @@ FGFR2
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
 intron_variant; NMD_transcript_variant; non_coding_transcript_variant
 </td>
 <td style="text-align:right;">
@@ -639,6 +655,8 @@ rs11977670
 </td>
 <td style="text-align:left;">
 RNU1-58P
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -678,6 +696,8 @@ CCDC170
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
 intron_variant
 </td>
 <td style="text-align:right;">
@@ -701,6 +721,8 @@ rs62235635
 </td>
 <td style="text-align:left;">
 PITPNB TTC28-AS1 MIR3199-2
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -741,6 +763,8 @@ SLC14A2
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
 intron_variant
 </td>
 <td style="text-align:right;">
@@ -764,6 +788,8 @@ rs58847541
 </td>
 <td style="text-align:left;">
 RN7SKP155
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -799,6 +825,8 @@ EMBP1
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
 RP11-439A17.7 HIST2H2BA SRGAP2C
 </td>
 <td style="text-align:left;">
@@ -830,6 +858,9 @@ rs4149909
 EXO1
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+EXO1
 </td>
 <td style="text-align:left;">
 </td>
@@ -868,6 +899,8 @@ rs4442975
 </td>
 <td style="text-align:left;">
 </td>
+<td style="text-align:left;">
+</td>
 <td style="text-align:right;">
 13.259218
 </td>
@@ -886,6 +919,9 @@ Breast cancer; Breast cancer (estrogen-receptor negative)
 <tr>
 <td style="text-align:left;">
 rs3769821
+</td>
+<td style="text-align:left;">
+CASP8
 </td>
 <td style="text-align:left;">
 CASP8
@@ -931,6 +967,8 @@ ZNF365
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
 non_coding_transcript_variant; intron_variant
 </td>
 <td style="text-align:right;">
@@ -955,6 +993,8 @@ rs2853669
 </td>
 <td style="text-align:left;">
 TERT
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -995,6 +1035,8 @@ KLHDC7A
 </td>
 <td style="text-align:left;">
 </td>
+<td style="text-align:left;">
+</td>
 <td style="text-align:right;">
 6.767261
 </td>
@@ -1017,6 +1059,8 @@ rs10096351
 </td>
 <td style="text-align:left;">
 CASC8 RP11-382A18.2
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -1057,6 +1101,8 @@ LSP1
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
 intron_variant; non_coding_transcript_variant
 </td>
 <td style="text-align:right;">
@@ -1078,6 +1124,8 @@ Breast cancer; Systolic blood pressure; Hypertension; Pulse pressure
 <tr>
 <td style="text-align:left;">
 rs2403907
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -1120,6 +1168,8 @@ TOX3 CASC16
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
 intron_variant
 </td>
 <td style="text-align:right;">
@@ -1143,6 +1193,8 @@ rs8056731
 </td>
 <td style="text-align:left;">
 CDYL2
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -1183,6 +1235,8 @@ MAP3K1
 </td>
 <td style="text-align:left;">
 </td>
+<td style="text-align:left;">
+</td>
 <td style="text-align:right;">
 -13.713217
 </td>
@@ -1205,6 +1259,8 @@ rs6787391
 </td>
 <td style="text-align:left;">
 ITPR1
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -1241,6 +1297,9 @@ PLA2G6
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+PLA2G6
+</td>
+<td style="text-align:left;">
 TMEM184B
 </td>
 <td style="text-align:left;">
@@ -1269,6 +1328,8 @@ rs170801
 </td>
 <td style="text-align:left;">
 AQP4-AS1 CHST9
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -1308,6 +1369,8 @@ BRCA2 IFIT1P1 N4BP2L1
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
 intron_variant; NMD_transcript_variant
 </td>
 <td style="text-align:right;">
@@ -1339,6 +1402,8 @@ HNF4G
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
 non_coding_transcript_variant; intron_variant
 </td>
 <td style="text-align:right;">
@@ -1359,6 +1424,8 @@ Cancer_Drivers; BRCA_OCRs
 <tr>
 <td style="text-align:left;">
 rs56387622
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -1399,6 +1466,8 @@ RP11-438D8.2 ZBTB38
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
 ZBTB38
 </td>
 <td style="text-align:left;">
@@ -1425,6 +1494,8 @@ rs6445068
 </td>
 <td style="text-align:left;">
 RP11-408H1.3
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -1465,6 +1536,8 @@ KRT18P41
 </td>
 <td style="text-align:left;">
 </td>
+<td style="text-align:left;">
+</td>
 <td style="text-align:right;">
 -5.569017
 </td>
@@ -1489,6 +1562,9 @@ KRTCAP2 RP11-201K10.3 TRIM46 MUC1
 </td>
 <td style="text-align:left;">
 HCN3
+</td>
+<td style="text-align:left;">
+MUC1
 </td>
 <td style="text-align:left;">
 </td>
@@ -1530,6 +1606,8 @@ KLF4
 </td>
 <td style="text-align:left;">
 </td>
+<td style="text-align:left;">
+</td>
 <td style="text-align:right;">
 -6.414597
 </td>
@@ -1551,6 +1629,8 @@ rs946008
 </td>
 <td style="text-align:left;">
 ZMIZ1
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -1590,6 +1670,8 @@ AQP4-AS1 CHST9
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
 intron_variant; non_coding_transcript_variant
 </td>
 <td style="text-align:right;">
@@ -1613,6 +1695,8 @@ rs11571818
 </td>
 <td style="text-align:left;">
 BRCA2 IFIT1P1 N4BP2L1
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -1652,6 +1736,8 @@ FTO
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
 intron_variant; non_coding_transcript_variant; NMD_transcript_variant
 </td>
 <td style="text-align:right;">
@@ -1676,6 +1762,8 @@ rs17035305
 </td>
 <td style="text-align:left;">
 PEX14
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -1708,6 +1796,8 @@ rs2871960
 </td>
 <td style="text-align:left;">
 ZBTB38
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -1749,6 +1839,8 @@ RP11-408H1.3
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
 non_coding_transcript_variant; intron_variant
 </td>
 <td style="text-align:right;">
@@ -1772,6 +1864,8 @@ rs1368298
 </td>
 <td style="text-align:left;">
 EBF1
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -1813,6 +1907,8 @@ KLF4
 </td>
 <td style="text-align:left;">
 </td>
+<td style="text-align:left;">
+</td>
 <td style="text-align:right;">
 -6.784819
 </td>
@@ -1831,6 +1927,8 @@ Cancer_Drivers
 <tr>
 <td style="text-align:left;">
 rs6787229
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -1872,6 +1970,8 @@ ASTN2 RP11-67K19.3
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
 non_coding_transcript_variant; intron_variant
 </td>
 <td style="text-align:right;">
@@ -1895,6 +1995,8 @@ rs6569648
 </td>
 <td style="text-align:left;">
 L3MBTL3
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -1936,6 +2038,8 @@ rs34885531
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
 non_coding_transcript_variant; intron_variant
 </td>
 <td style="text-align:right;">
@@ -1958,6 +2062,8 @@ rs1432679
 </td>
 <td style="text-align:left;">
 EBF1
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -1993,6 +2099,9 @@ KRTCAP2 RP11-201K10.3 TRIM46 MUC1
 </td>
 <td style="text-align:left;">
 HCN3
+</td>
+<td style="text-align:left;">
+MUC1
 </td>
 <td style="text-align:left;">
 </td>
@@ -2031,6 +2140,8 @@ RP11-285B24.1
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
 non_coding_transcript_variant; intron_variant
 </td>
 <td style="text-align:right;">
@@ -2051,6 +2162,8 @@ BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
 <tr>
 <td style="text-align:left;">
 rs7463114
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -2088,6 +2201,8 @@ PRC1 PRC1-AS1 VPS33B
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
 RCCD1
 </td>
 <td style="text-align:left;">
@@ -2121,6 +2236,9 @@ KCNN4
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+KCNN4
+</td>
+<td style="text-align:left;">
 ZNF404
 </td>
 <td style="text-align:left;">
@@ -2150,6 +2268,8 @@ rs55872725
 </td>
 <td style="text-align:left;">
 FTO
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -2190,6 +2310,8 @@ RP11-964E11.2 PAX9
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
 intron_variant; non_coding_transcript_exon_variant
 </td>
 <td style="text-align:right;">
@@ -2216,6 +2338,8 @@ TGFBR2
 </td>
 <td style="text-align:left;">
 TGFBR2
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -2250,6 +2374,9 @@ KCNN4
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+KCNN4
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 KCNN4
@@ -2282,6 +2409,8 @@ AC090453.1
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
 ZNF703
 </td>
 <td style="text-align:left;">
@@ -2309,6 +2438,8 @@ rs11624164
 </td>
 <td style="text-align:left;">
 RAD51B
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -2349,6 +2480,8 @@ RAD51B
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
 intron_variant; non_coding_transcript_variant
 </td>
 <td style="text-align:right;">
@@ -2369,6 +2502,8 @@ BRCA_OCRs; Conserved_LindbladToh; Immune_OCRs; Immune_h3k27ac
 <tr>
 <td style="text-align:left;">
 rs497006
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -2409,6 +2544,8 @@ CMSS1 FILIP1L
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
 intron_variant; NMD_transcript_variant
 </td>
 <td style="text-align:right;">
@@ -2432,6 +2569,8 @@ rs7705465
 </td>
 <td style="text-align:left;">
 ARRDC3
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -2470,6 +2609,9 @@ STXBP4
 STXBP4
 </td>
 <td style="text-align:left;">
+STXBP4
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 intron_variant
@@ -2497,6 +2639,9 @@ rs12463319
 KCNN4
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+KCNN4
 </td>
 <td style="text-align:left;">
 </td>
@@ -2535,6 +2680,8 @@ rs2796395
 </td>
 <td style="text-align:left;">
 </td>
+<td style="text-align:left;">
+</td>
 <td style="text-align:right;">
 -5.114828
 </td>
@@ -2559,6 +2706,8 @@ RCCD1 PRC1 PRC1-AS1 Y_RNA
 </td>
 <td style="text-align:left;">
 FURIN
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 RCCD1
@@ -2590,6 +2739,8 @@ rs552647
 </td>
 <td style="text-align:left;">
 NEK10
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -2631,6 +2782,8 @@ HNF4G
 </td>
 <td style="text-align:left;">
 </td>
+<td style="text-align:left;">
+</td>
 <td style="text-align:right;">
 -6.735065
 </td>
@@ -2652,6 +2805,8 @@ rs10442
 </td>
 <td style="text-align:left;">
 SSBP4 ISYNA1 CTD-3137H5.1 ELL AC010335.1
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -2692,6 +2847,8 @@ RPL29P3 NKX2-8
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
 non_coding_transcript_variant; intron_variant
 </td>
 <td style="text-align:right;">
@@ -2723,6 +2880,8 @@ ESR1
 </td>
 <td style="text-align:left;">
 </td>
+<td style="text-align:left;">
+</td>
 <td style="text-align:right;">
 -9.398127
 </td>
@@ -2744,6 +2903,8 @@ rs10096213
 </td>
 <td style="text-align:left;">
 AC090453.1
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -2784,6 +2945,8 @@ TGFBR2
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
 splice_region_variant; intron_variant; non_coding_transcript_variant
 </td>
 <td style="text-align:right;">
@@ -2816,6 +2979,8 @@ ESR1
 </td>
 <td style="text-align:left;">
 </td>
+<td style="text-align:left;">
+</td>
 <td style="text-align:right;">
 -9.396370
 </td>
@@ -2834,6 +2999,8 @@ Cancer_Drivers; BRCA_OCRs; BRCA_ac
 <tr>
 <td style="text-align:left;">
 rs7545327
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -2874,6 +3041,8 @@ RAD51B
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
 intron_variant; non_coding_transcript_variant
 </td>
 <td style="text-align:right;">
@@ -2897,6 +3066,8 @@ rs12434438
 </td>
 <td style="text-align:left;">
 HIF1A HIF1A-AS2 RP11-618G20.1
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -2936,6 +3107,8 @@ ARRDC3
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
 intron_variant; non_coding_transcript_variant
 </td>
 <td style="text-align:right;">
@@ -2959,6 +3132,8 @@ rs1895062
 </td>
 <td style="text-align:left;">
 ASTN2 RP11-264C15.2
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -3000,6 +3175,8 @@ KRT18P41
 </td>
 <td style="text-align:left;">
 </td>
+<td style="text-align:left;">
+</td>
 <td style="text-align:right;">
 -5.704365
 </td>
@@ -3021,6 +3198,8 @@ rs17756000
 </td>
 <td style="text-align:left;">
 RAD51B
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -3061,6 +3240,8 @@ KRT18P41
 </td>
 <td style="text-align:left;">
 </td>
+<td style="text-align:left;">
+</td>
 <td style="text-align:right;">
 -5.693148
 </td>
@@ -3082,6 +3263,8 @@ rs754416
 </td>
 <td style="text-align:left;">
 ZMIZ1
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -3123,6 +3306,8 @@ ESR1
 </td>
 <td style="text-align:left;">
 </td>
+<td style="text-align:left;">
+</td>
 <td style="text-align:right;">
 -9.390059
 </td>
@@ -3144,6 +3329,8 @@ rs35244739
 </td>
 <td style="text-align:left;">
 HIF1A HIF1A-AS2 RP11-618G20.1
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -3175,6 +3362,8 @@ rs7921002
 </td>
 <td style="text-align:left;">
 ZMIZ1
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -3215,6 +3404,8 @@ SNORA40
 </td>
 <td style="text-align:left;">
 </td>
+<td style="text-align:left;">
+</td>
 <td style="text-align:right;">
 -5.647059
 </td>
@@ -3236,6 +3427,8 @@ rs75772194
 </td>
 <td style="text-align:left;">
 AC090453.1
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -3268,6 +3461,8 @@ HSPA4
 </td>
 <td style="text-align:left;">
 AFF4
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -3307,6 +3502,8 @@ TOX3 CASC16
 </td>
 <td style="text-align:left;">
 </td>
+<td style="text-align:left;">
+</td>
 <td style="text-align:right;">
 -19.368932
 </td>
@@ -3328,6 +3525,8 @@ rs7484068
 </td>
 <td style="text-align:left;">
 SLC25A22 PIDD RPLP2 SNORA52
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -3369,6 +3568,8 @@ ZMIZ1
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
 intron_variant
 </td>
 <td style="text-align:right;">
@@ -3392,6 +3593,8 @@ rs7153817
 </td>
 <td style="text-align:left;">
 HIF1A HIF1A-AS2 RP11-618G20.1
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -3427,6 +3630,9 @@ AIRE PFKL
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+AIRE PFKL
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -3454,6 +3660,8 @@ rs1051545
 </td>
 <td style="text-align:left;">
 NEK10 SLC4A7
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -3493,6 +3701,8 @@ CMSS1 FILIP1L
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
 non_coding_transcript_variant; intron_variant; NMD_transcript_variant
 </td>
 <td style="text-align:right;">
@@ -3516,6 +3726,8 @@ rs7484123
 </td>
 <td style="text-align:left;">
 SLC25A22 PIDD RPLP2 SNORA52
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -3553,6 +3765,9 @@ KCNN4
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+KCNN4
+</td>
+<td style="text-align:left;">
 ZNF404
 </td>
 <td style="text-align:left;">
@@ -3583,6 +3798,8 @@ rs11246319
 </td>
 <td style="text-align:left;">
 PIDD RPLP2 SNORA52 PNPLA2
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -3619,6 +3836,9 @@ AIRE PFKL
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+AIRE PFKL
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -3650,6 +3870,9 @@ AIRE PFKL
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+AIRE PFKL
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -3679,6 +3902,9 @@ rs55828838
 AIRE PFKL
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+AIRE PFKL
 </td>
 <td style="text-align:left;">
 </td>
@@ -3717,6 +3943,8 @@ TGFBR2
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
 intron_variant; non_coding_transcript_variant
 </td>
 <td style="text-align:right;">
@@ -3740,6 +3968,8 @@ rs5001107
 </td>
 <td style="text-align:left;">
 RP11-285B24.1
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -3781,6 +4011,8 @@ AFF4
 </td>
 <td style="text-align:left;">
 </td>
+<td style="text-align:left;">
+</td>
 <td style="text-align:right;">
 5.346008
 </td>
@@ -3802,6 +4034,8 @@ rs963513
 </td>
 <td style="text-align:left;">
 RP11-285B24.1
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -3841,6 +4075,8 @@ rs17145088
 </td>
 <td style="text-align:left;">
 </td>
+<td style="text-align:left;">
+</td>
 <td style="text-align:right;">
 -5.940102
 </td>
@@ -3862,6 +4098,8 @@ rs12375
 </td>
 <td style="text-align:left;">
 PEX14
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -3902,6 +4140,8 @@ ZMIZ1
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
 intron_variant
 </td>
 <td style="text-align:right;">
@@ -3933,6 +4173,8 @@ EBF1
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
 non_coding_transcript_variant; intron_variant
 </td>
 <td style="text-align:right;">
@@ -3956,6 +4198,8 @@ rs28572537
 </td>
 <td style="text-align:left;">
 SSBP4 ISYNA1 CTD-3137H5.1 ELL AC010335.1
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -3996,6 +4240,8 @@ RP11-134N8.2
 </td>
 <td style="text-align:left;">
 </td>
+<td style="text-align:left;">
+</td>
 <td style="text-align:right;">
 -5.444637
 </td>
@@ -4027,6 +4273,8 @@ HNF4G
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
 non_coding_transcript_variant; intron_variant
 </td>
 <td style="text-align:right;">
@@ -4047,6 +4295,8 @@ Cancer_Drivers
 <tr>
 <td style="text-align:left;">
 rs568110
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -4087,6 +4337,8 @@ rs531790
 </td>
 <td style="text-align:left;">
 </td>
+<td style="text-align:left;">
+</td>
 <td style="text-align:right;">
 -4.890636
 </td>
@@ -4105,6 +4357,8 @@ BRCA_OCRs; Conserved_LindbladToh; Immune_OCRs
 <tr>
 <td style="text-align:left;">
 rs55976031
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -4145,6 +4399,8 @@ ZMIZ1
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
 intron_variant
 </td>
 <td style="text-align:right;">
@@ -4177,6 +4433,8 @@ TGFBR2
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
 intron_variant; non_coding_transcript_variant
 </td>
 <td style="text-align:right;">
@@ -4200,6 +4458,8 @@ rs31864
 </td>
 <td style="text-align:left;">
 EBF1
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -4240,6 +4500,8 @@ NEK10
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
 intron_variant; non_coding_transcript_variant
 </td>
 <td style="text-align:right;">
@@ -4259,6 +4521,8 @@ intron_variant; non_coding_transcript_variant
 <tr>
 <td style="text-align:left;">
 rs2796392
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -4299,6 +4563,8 @@ CASC16
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
 non_coding_transcript_variant; intron_variant
 </td>
 <td style="text-align:right;">
@@ -4323,6 +4589,8 @@ rs6001799
 </td>
 <td style="text-align:left;">
 TNRC6B
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -4360,6 +4628,8 @@ AFF4
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
 HSPA4
 </td>
 <td style="text-align:left;">
@@ -4386,6 +4656,8 @@ rs2480777
 </td>
 <td style="text-align:left;">
 PEX14
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -4426,6 +4698,8 @@ ZMIZ1
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
 intron_variant
 </td>
 <td style="text-align:right;">
@@ -4446,6 +4720,8 @@ BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
 <tr>
 <td style="text-align:left;">
 rs72784411
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -4485,6 +4761,8 @@ rs67529903
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
 intron_variant
 </td>
 <td style="text-align:right;">
@@ -4508,6 +4786,8 @@ rs271621
 </td>
 <td style="text-align:left;">
 ELL
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -4548,6 +4828,8 @@ rs648354
 </td>
 <td style="text-align:left;">
 </td>
+<td style="text-align:left;">
+</td>
 <td style="text-align:right;">
 9.756410
 </td>
@@ -4571,6 +4853,9 @@ rs244294
 STXBP4
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+STXBP4
 </td>
 <td style="text-align:left;">
 STXBP4
@@ -4608,6 +4893,8 @@ SGCE
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
 non_coding_transcript_variant; intron_variant; NMD_transcript_variant; non_coding_transcript_exon_variant
 </td>
 <td style="text-align:right;">
@@ -4633,6 +4920,9 @@ rs5743551
 TLR1
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+TLR1
 </td>
 <td style="text-align:left;">
 </td>
@@ -4671,6 +4961,8 @@ TGFBR2
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
 intron_variant; non_coding_transcript_variant
 </td>
 <td style="text-align:right;">
@@ -4694,6 +4986,8 @@ rs4980031
 </td>
 <td style="text-align:left;">
 ZMIZ1
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -4729,6 +5023,9 @@ EXO1
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+EXO1
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -4753,6 +5050,8 @@ Breast cancer
 <tr>
 <td style="text-align:left;">
 rs525142
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>

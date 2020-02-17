@@ -101,6 +101,7 @@ annotation.track <- function(bed_annotations, locus){
   
   return(p)
 }
+
 gene.track <- function(locus){
   
   gene_cords <- vroom::vroom('~/GERMLINE/refGenome/GENES_COORDs_b37.txt', delim = '\t', col_names = F)
@@ -131,11 +132,11 @@ gene.track <- function(locus){
   
   currChrom[outChain, "Y1"] <- 0.8
   currChrom[outChain, "Y2"] <- 1
-  
+
   p <- ggplot() +
        geom_rect(data=currChrom, mapping=aes(xmin=X2, xmax=X3, ymin=Y1, ymax=Y2), color = "blue", fill="lightblue", alpha=1, na.rm=TRUE) +
        #geom_text(data=currChrom, aes(x=X2+(X3-X2)/2, y=Y2+0.1, label=X4), size=3, na.rm = T) + 
-       ggrepel::geom_text_repel(data=currChrom, mapping = aes(x=X2+(X3-X2)/2, y=Y1+(Y2-Y1)/2, label=X4), na.rm = T,segment.colour = "black", min.segment.length = 0) + 
+       #ggrepel::geom_text_repel(data=currChrom, mapping = aes(x=X2+(X3-X2)/2, y=Y1+(Y2-Y1)/2, label=X4), na.rm = T,segment.colour = "black", min.segment.length = 0) + 
        theme_void() +
        theme(plot.title = element_text(size=10), legend.position='bottom') +
        xlim(c(start, end))
@@ -150,13 +151,11 @@ locusPlotter <- function(df, locus, annotations){
 
   pval <- pval.track(df = sub.df, locus_to_plot = locus)
   PIP <- pip.track(df = sub.df, locus_to_plot = locus)
-  #genes <- suppressMessages(gene.track(locus))
+  genes <- suppressMessages(gene.track(locus))
   annot.track <- suppressMessages(suppressMessages(annotation.track(annotations, locus)))
   
   topPipPos <- as.numeric(sub.df[which.max(sub.df$susie_pip), 'pos'])
-  
-  print(sub.df[which.max(sub.df$susie_pip), c('chr','pos')])
-  
+
   Z <- wrap_plots(pval, PIP, annot.track, nrow=3, heights = c(3,3,4))
   Z <- suppressMessages(Z & geom_vline(xintercept = topPipPos, color='black', linetype="dashed") & xlim(c(topPipPos-50000, topPipPos+50000)))
   
