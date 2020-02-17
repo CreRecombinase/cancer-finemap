@@ -442,15 +442,15 @@ annot.df$merged &lt;- apply(annot.df, MARGIN = 1, FUN = function(x){return(paste
 top.snps &lt;- inner_join(top.snps, annot.df[ ,c(&quot;snp&quot;,&quot;merged&quot;)], by = &quot;snp&quot;)</code></pre>
 <p>Add gene innformation (nearby gene, drivers, immune genes)</p>
 <p>Immune genes were obtained from GO db (using immune response GO term)</p>
-<pre class="r"><code># add regular genes
+<pre class="r"><code># add regular genes within 10kb
 genes &lt;- suppressMessages(vroom::vroom(&#39;~/GERMLINE/refGenome/GENES_COORDs_b37.txt&#39;, col_names = T))
 top.snps &lt;- add.nearby.gene(top.snps, genes, dist=10000, gene_type=&#39;nearby_gene&#39;)
 
-# add drivers
+# add drivers within 100kb (theres less of them)
 drivers &lt;- readLines(&#39;~/GERMLINE/ANNOTATIONS/cancer_driver_genes/AllDrivers_FDR_0.10.txt&#39;)
 top.snps &lt;- add.nearby.gene(top.snps, genes[genes$gene %in% drivers, ], dist = 100000, gene_type=&#39;nearby_driver&#39;)
 
-# immune genes
+# immune genes (within 10kb)
 immune.genes &lt;- suppressMessages(vroom::vroom(&#39;~/GERMLINE/refGenome/immune_genes_cords.txt&#39;, col_names = T))
 top.snps &lt;- add.nearby.gene(top.snps, immune.genes, dist = 10000, gene_type=&#39;nearby_immune&#39;)</code></pre>
 <p>Add eQTL information</p>
@@ -467,8 +467,9 @@ top.snps &lt;- add.gwas_catalog(top.snps, gwas)</code></pre>
 <div id="annotated-table" class="section level4">
 <h4>Annotated Table</h4>
 <pre class="r"><code>top.snps &lt;- top.snps %&gt;% replace(. == &#39;NA&#39; | is.na(.), &#39;&#39;)
-top.snps.kable &lt;- top.snps[ , c(&#39;snp&#39;, &#39;nearby_gene&#39;,&#39;nearby_driver&#39;,&#39;nearby_immune&#39;,&#39;breast_gtex_eGenes&#39;,&#39;whole_blood_gtex_eGenes&#39;,&#39;consequence&#39;,&#39;zscore&#39;,&#39;susie_pip&#39;, &#39;merged&#39;,&#39;gwas_catalog&#39; ,&#39;locus&#39;)]
-colnames(top.snps.kable) &lt;- c(&#39;SNP&#39;,&#39;Nearby Genes (10kb)&#39;,&#39;Nearby Drivers (100kb)&#39;,&#39;Nearby Immune Gene (10kb)&#39;,&#39;Breast eGenes&#39;,&#39;Whole-Blood eGenes&#39;,&#39;Consequence&#39;,&#39;ZScore&#39;,&#39;PIP&#39;,&#39;Annotation&#39;,&#39;GWAS Catalog&#39;,&#39;Locus&#39;)
+
+top.snps.kable &lt;- top.snps[ , c(&#39;snp&#39;,&#39;gwas_catalog&#39;,&#39;nearby_gene&#39;,&#39;nearby_driver&#39;,&#39;nearby_immune&#39;,&#39;breast_gtex_eGenes&#39;,&#39;whole_blood_gtex_eGenes&#39;,&#39;merged&#39;,&#39;consequence&#39;,&#39;zscore&#39;,&#39;susie_pip&#39;,&#39;locus&#39;)]
+colnames(top.snps.kable) &lt;- c(&#39;SNP&#39;,&#39;GWAS Catalog&#39;,&#39;Nearby Genes (10kb)&#39;,&#39;Nearby Drivers (100kb)&#39;,&#39;Nearby Immune Gene (10kb)&#39;,&#39;Breast eGenes&#39;,&#39;Whole-Blood eGenes&#39;,&#39;Annotation&#39;,&#39;Consequence&#39;,&#39;ZScore&#39;,&#39;PIP&#39;,&#39;Locus&#39;)
 top.snps.kable &lt;- top.snps.kable[order(abs(top.snps.kable$PIP), decreasing = T), ]
 kable(top.snps.kable) %&gt;% 
   kable_styling(bootstrap_options = c(&quot;striped&quot;, &quot;hover&quot;, &quot;condensed&quot;)) %&gt;% 
@@ -479,6 +480,9 @@ kable(top.snps.kable) %&gt;%
 <tr>
 <th style="text-align:left;position: sticky; top:0; background-color: #FFFFFF;">
 SNP
+</th>
+<th style="text-align:left;position: sticky; top:0; background-color: #FFFFFF;">
+GWAS Catalog
 </th>
 <th style="text-align:left;position: sticky; top:0; background-color: #FFFFFF;">
 Nearby Genes (10kb)
@@ -496,6 +500,9 @@ Breast eGenes
 Whole-Blood eGenes
 </th>
 <th style="text-align:left;position: sticky; top:0; background-color: #FFFFFF;">
+Annotation
+</th>
+<th style="text-align:left;position: sticky; top:0; background-color: #FFFFFF;">
 Consequence
 </th>
 <th style="text-align:right;position: sticky; top:0; background-color: #FFFFFF;">
@@ -503,12 +510,6 @@ ZScore
 </th>
 <th style="text-align:right;position: sticky; top:0; background-color: #FFFFFF;">
 PIP
-</th>
-<th style="text-align:left;position: sticky; top:0; background-color: #FFFFFF;">
-Annotation
-</th>
-<th style="text-align:left;position: sticky; top:0; background-color: #FFFFFF;">
-GWAS Catalog
 </th>
 <th style="text-align:right;position: sticky; top:0; background-color: #FFFFFF;">
 Locus
@@ -521,6 +522,7 @@ Locus
 rs78540526
 </td>
 <td style="text-align:left;">
+Breast cancer
 </td>
 <td style="text-align:left;">
 </td>
@@ -529,6 +531,11 @@ rs78540526
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+BRCA_OCRs; BRCA_ac; Immune_OCRs; Immune_h3k27ac
 </td>
 <td style="text-align:left;">
 </td>
@@ -537,12 +544,6 @@ rs78540526
 </td>
 <td style="text-align:right;">
 1.0000000
-</td>
-<td style="text-align:left;">
-BRCA_OCRs; BRCA_ac; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
-Breast cancer
 </td>
 <td style="text-align:right;">
 1133
@@ -553,7 +554,12 @@ Breast cancer
 rs10941679
 </td>
 <td style="text-align:left;">
+Breast cancer
+</td>
+<td style="text-align:left;">
 RP11-503D12.1 RN7SL383P
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -571,11 +577,6 @@ RP11-503D12.1 RN7SL383P
 <td style="text-align:right;">
 0.9999996
 </td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:left;">
-Breast cancer
-</td>
 <td style="text-align:right;">
 550
 </td>
@@ -583,6 +584,9 @@ Breast cancer
 <tr>
 <td style="text-align:left;">
 rs35383942
+</td>
+<td style="text-align:left;">
+Breast cancer; Male-pattern baldness
 </td>
 <td style="text-align:left;">
 RP11-134G8.8 PHLDA3
@@ -597,6 +601,9 @@ PHLDA3
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+Cancer_Drivers; BRCA_OCRs; BRCA_ac; Immune_OCRs; Immune_h3k27ac
+</td>
+<td style="text-align:left;">
 missense_variant
 </td>
 <td style="text-align:right;">
@@ -604,12 +611,6 @@ missense_variant
 </td>
 <td style="text-align:right;">
 0.9999980
-</td>
-<td style="text-align:left;">
-Cancer_Drivers; BRCA_OCRs; BRCA_ac; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
-Breast cancer; Male-pattern baldness
 </td>
 <td style="text-align:right;">
 103
@@ -620,16 +621,21 @@ Breast cancer; Male-pattern baldness
 rs2981583
 </td>
 <td style="text-align:left;">
-FGFR2
 </td>
 <td style="text-align:left;">
 FGFR2
 </td>
 <td style="text-align:left;">
+FGFR2
 </td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+Cancer_Drivers; BRCA_OCRs
 </td>
 <td style="text-align:left;">
 intron_variant; NMD_transcript_variant; non_coding_transcript_variant
@@ -640,11 +646,6 @@ intron_variant; NMD_transcript_variant; non_coding_transcript_variant
 <td style="text-align:right;">
 0.9903443
 </td>
-<td style="text-align:left;">
-Cancer_Drivers; BRCA_OCRs
-</td>
-<td style="text-align:left;">
-</td>
 <td style="text-align:right;">
 1086
 </td>
@@ -652,6 +653,9 @@ Cancer_Drivers; BRCA_OCRs
 <tr>
 <td style="text-align:left;">
 rs11977670
+</td>
+<td style="text-align:left;">
+Breast cancer
 </td>
 <td style="text-align:left;">
 RNU1-58P
@@ -665,18 +669,15 @@ RNU1-58P
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+BRCA_OCRs; BRCA_ac; Immune_OCRs; Immune_h3k27ac
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 -6.713656
 </td>
 <td style="text-align:right;">
 0.9876184
-</td>
-<td style="text-align:left;">
-BRCA_OCRs; BRCA_ac; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
-Breast cancer
 </td>
 <td style="text-align:right;">
 829
@@ -685,6 +686,8 @@ Breast cancer
 <tr>
 <td style="text-align:left;">
 rs2008930
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 CCDC170
@@ -698,6 +701,9 @@ CCDC170
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+BRCA_OCRs; BRCA_ac; Immune_OCRs; Immune_h3k27ac
+</td>
+<td style="text-align:left;">
 intron_variant
 </td>
 <td style="text-align:right;">
@@ -706,11 +712,6 @@ intron_variant
 <td style="text-align:right;">
 0.9812323
 </td>
-<td style="text-align:left;">
-BRCA_OCRs; BRCA_ac; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
-</td>
 <td style="text-align:right;">
 729
 </td>
@@ -718,6 +719,9 @@ BRCA_OCRs; BRCA_ac; Immune_OCRs; Immune_h3k27ac
 <tr>
 <td style="text-align:left;">
 rs62235635
+</td>
+<td style="text-align:left;">
+Breast cancer
 </td>
 <td style="text-align:left;">
 PITPNB TTC28-AS1 MIR3199-2
@@ -731,6 +735,9 @@ PITPNB TTC28-AS1 MIR3199-2
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
+</td>
+<td style="text-align:left;">
 intron_variant; non_coding_transcript_variant
 </td>
 <td style="text-align:right;">
@@ -738,12 +745,6 @@ intron_variant; non_coding_transcript_variant
 </td>
 <td style="text-align:right;">
 0.9662738
-</td>
-<td style="text-align:left;">
-BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
-Breast cancer
 </td>
 <td style="text-align:right;">
 1688
@@ -754,7 +755,12 @@ Breast cancer
 rs9952980
 </td>
 <td style="text-align:left;">
+Breast cancer
+</td>
+<td style="text-align:left;">
 SLC14A2
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -773,11 +779,6 @@ intron_variant
 <td style="text-align:right;">
 0.9454691
 </td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:left;">
-Breast cancer
-</td>
 <td style="text-align:right;">
 1554
 </td>
@@ -785,6 +786,9 @@ Breast cancer
 <tr>
 <td style="text-align:left;">
 rs58847541
+</td>
+<td style="text-align:left;">
+Breast cancer
 </td>
 <td style="text-align:left;">
 RN7SKP155
@@ -798,18 +802,15 @@ RN7SKP155
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+BRCA_OCRs; Conserved_LindbladToh
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 -5.782952
 </td>
 <td style="text-align:right;">
 0.9133895
-</td>
-<td style="text-align:left;">
-BRCA_OCRs; Conserved_LindbladToh
-</td>
-<td style="text-align:left;">
-Breast cancer
 </td>
 <td style="text-align:right;">
 922
@@ -818,6 +819,9 @@ Breast cancer
 <tr>
 <td style="text-align:left;">
 rs11249433
+</td>
+<td style="text-align:left;">
+Breast cancer
 </td>
 <td style="text-align:left;">
 EMBP1
@@ -833,6 +837,8 @@ RP11-439A17.7 HIST2H2BA SRGAP2C
 SRGAP2C
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
 non_coding_transcript_variant; intron_variant
 </td>
 <td style="text-align:right;">
@@ -840,11 +846,6 @@ non_coding_transcript_variant; intron_variant
 </td>
 <td style="text-align:right;">
 0.9099498
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:left;">
-Breast cancer
 </td>
 <td style="text-align:right;">
 73
@@ -855,6 +856,9 @@ Breast cancer
 rs4149909
 </td>
 <td style="text-align:left;">
+Basal cell carcinoma; Keratinocyte cancer (MTAG)
+</td>
+<td style="text-align:left;">
 EXO1
 </td>
 <td style="text-align:left;">
@@ -865,6 +869,9 @@ EXO1
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+Conserved_LindbladToh; Immune_OCRs
 </td>
 <td style="text-align:left;">
 missense_variant; non_coding_transcript_exon_variant
@@ -875,12 +882,6 @@ missense_variant; non_coding_transcript_exon_variant
 <td style="text-align:right;">
 0.8984576
 </td>
-<td style="text-align:left;">
-Conserved_LindbladToh; Immune_OCRs
-</td>
-<td style="text-align:left;">
-Basal cell carcinoma; Keratinocyte cancer (MTAG)
-</td>
 <td style="text-align:right;">
 129
 </td>
@@ -888,6 +889,11 @@ Basal cell carcinoma; Keratinocyte cancer (MTAG)
 <tr>
 <td style="text-align:left;">
 rs4442975
+</td>
+<td style="text-align:left;">
+Breast cancer; Breast cancer (estrogen-receptor negative)
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -907,11 +913,6 @@ rs4442975
 <td style="text-align:right;">
 0.8827994
 </td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:left;">
-Breast cancer; Breast cancer (estrogen-receptor negative)
-</td>
 <td style="text-align:right;">
 261
 </td>
@@ -919,6 +920,9 @@ Breast cancer; Breast cancer (estrogen-receptor negative)
 <tr>
 <td style="text-align:left;">
 rs3769821
+</td>
+<td style="text-align:left;">
+Breast cancer; Non-small cell lung cancer
 </td>
 <td style="text-align:left;">
 CASP8
@@ -935,6 +939,9 @@ ALS2CR12
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+Cancer_Drivers; BRCA_ac; Immune_OCRs; Immune_h3k27ac
+</td>
+<td style="text-align:left;">
 intron_variant; non_coding_transcript_variant; NMD_transcript_variant
 </td>
 <td style="text-align:right;">
@@ -943,12 +950,6 @@ intron_variant; non_coding_transcript_variant; NMD_transcript_variant
 <td style="text-align:right;">
 0.8671863
 </td>
-<td style="text-align:left;">
-Cancer_Drivers; BRCA_ac; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
-Breast cancer; Non-small cell lung cancer
-</td>
 <td style="text-align:right;">
 252
 </td>
@@ -956,6 +957,9 @@ Breast cancer; Non-small cell lung cancer
 <tr>
 <td style="text-align:left;">
 rs10995201
+</td>
+<td style="text-align:left;">
+Breast cancer; Breast cancer (estrogen-receptor negative)
 </td>
 <td style="text-align:left;">
 ZNF365
@@ -969,6 +973,9 @@ ZNF365
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+Immune_OCRs; Immune_h3k27ac
+</td>
+<td style="text-align:left;">
 non_coding_transcript_variant; intron_variant
 </td>
 <td style="text-align:right;">
@@ -977,12 +984,6 @@ non_coding_transcript_variant; intron_variant
 <td style="text-align:right;">
 0.8637566
 </td>
-<td style="text-align:left;">
-Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
-Breast cancer; Breast cancer (estrogen-receptor negative)
-</td>
 <td style="text-align:right;">
 1052
 </td>
@@ -990,6 +991,9 @@ Breast cancer; Breast cancer (estrogen-receptor negative)
 <tr>
 <td style="text-align:left;">
 rs2853669
+</td>
+<td style="text-align:left;">
+Breast cancer
 </td>
 <td style="text-align:left;">
 TERT
@@ -1003,18 +1007,15 @@ TERT
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+Immune_OCRs
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 7.213920
 </td>
 <td style="text-align:right;">
 0.8402765
-</td>
-<td style="text-align:left;">
-Immune_OCRs
-</td>
-<td style="text-align:left;">
-Breast cancer
 </td>
 <td style="text-align:right;">
 523
@@ -1023,6 +1024,9 @@ Breast cancer
 <tr>
 <td style="text-align:left;">
 rs2992756
+</td>
+<td style="text-align:left;">
+Breast cancer
 </td>
 <td style="text-align:left;">
 KLHDC7A
@@ -1036,18 +1040,15 @@ KLHDC7A
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+BRCA_OCRs; BRCA_ac; Immune_OCRs
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 6.767261
 </td>
 <td style="text-align:right;">
 0.8375745
-</td>
-<td style="text-align:left;">
-BRCA_OCRs; BRCA_ac; Immune_OCRs
-</td>
-<td style="text-align:left;">
-Breast cancer
 </td>
 <td style="text-align:right;">
 13
@@ -1056,6 +1057,9 @@ Breast cancer
 <tr>
 <td style="text-align:left;">
 rs10096351
+</td>
+<td style="text-align:left;">
+Breast cancer
 </td>
 <td style="text-align:left;">
 CASC8 RP11-382A18.2
@@ -1069,6 +1073,9 @@ CASC8 RP11-382A18.2
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+Immune_OCRs
+</td>
+<td style="text-align:left;">
 intron_variant; non_coding_transcript_variant
 </td>
 <td style="text-align:right;">
@@ -1077,12 +1084,6 @@ intron_variant; non_coding_transcript_variant
 <td style="text-align:right;">
 0.8248181
 </td>
-<td style="text-align:left;">
-Immune_OCRs
-</td>
-<td style="text-align:left;">
-Breast cancer
-</td>
 <td style="text-align:right;">
 925
 </td>
@@ -1090,6 +1091,9 @@ Breast cancer
 <tr>
 <td style="text-align:left;">
 rs1973765
+</td>
+<td style="text-align:left;">
+Breast cancer; Systolic blood pressure; Hypertension; Pulse pressure
 </td>
 <td style="text-align:left;">
 LSP1
@@ -1103,6 +1107,9 @@ LSP1
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
+</td>
+<td style="text-align:left;">
 intron_variant; non_coding_transcript_variant
 </td>
 <td style="text-align:right;">
@@ -1110,12 +1117,6 @@ intron_variant; non_coding_transcript_variant
 </td>
 <td style="text-align:right;">
 0.8151062
-</td>
-<td style="text-align:left;">
-BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
-Breast cancer; Systolic blood pressure; Hypertension; Pulse pressure
 </td>
 <td style="text-align:right;">
 1097
@@ -1126,6 +1127,7 @@ Breast cancer; Systolic blood pressure; Hypertension; Pulse pressure
 rs2403907
 </td>
 <td style="text-align:left;">
+Breast cancer
 </td>
 <td style="text-align:left;">
 </td>
@@ -1134,6 +1136,11 @@ rs2403907
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+BRCA_ac
 </td>
 <td style="text-align:left;">
 non_coding_transcript_variant; intron_variant
@@ -1144,12 +1151,6 @@ non_coding_transcript_variant; intron_variant
 <td style="text-align:right;">
 0.7598134
 </td>
-<td style="text-align:left;">
-BRCA_ac
-</td>
-<td style="text-align:left;">
-Breast cancer
-</td>
 <td style="text-align:right;">
 1657
 </td>
@@ -1157,6 +1158,8 @@ Breast cancer
 <tr>
 <td style="text-align:left;">
 rs112149573
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 TOX3 CASC16
@@ -1170,6 +1173,9 @@ TOX3 CASC16
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+BRCA_OCRs; Immune_OCRs
+</td>
+<td style="text-align:left;">
 intron_variant
 </td>
 <td style="text-align:right;">
@@ -1178,11 +1184,6 @@ intron_variant
 <td style="text-align:right;">
 0.7397011
 </td>
-<td style="text-align:left;">
-BRCA_OCRs; Immune_OCRs
-</td>
-<td style="text-align:left;">
-</td>
 <td style="text-align:right;">
 1457
 </td>
@@ -1190,6 +1191,8 @@ BRCA_OCRs; Immune_OCRs
 <tr>
 <td style="text-align:left;">
 rs8056731
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 CDYL2
@@ -1203,6 +1206,9 @@ CDYL2
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+BRCA_OCRs; Conserved_LindbladToh; BRCA_ac; Immune_OCRs
+</td>
+<td style="text-align:left;">
 intron_variant; non_coding_transcript_variant
 </td>
 <td style="text-align:right;">
@@ -1211,11 +1217,6 @@ intron_variant; non_coding_transcript_variant
 <td style="text-align:right;">
 0.7215604
 </td>
-<td style="text-align:left;">
-BRCA_OCRs; Conserved_LindbladToh; BRCA_ac; Immune_OCRs
-</td>
-<td style="text-align:left;">
-</td>
 <td style="text-align:right;">
 1474
 </td>
@@ -1223,6 +1224,9 @@ BRCA_OCRs; Conserved_LindbladToh; BRCA_ac; Immune_OCRs
 <tr>
 <td style="text-align:left;">
 rs62355901
+</td>
+<td style="text-align:left;">
+Breast cancer
 </td>
 <td style="text-align:left;">
 </td>
@@ -1236,18 +1240,15 @@ MAP3K1
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+Cancer_Drivers; BRCA_ac; Immune_OCRs
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 -13.713217
 </td>
 <td style="text-align:right;">
 0.6619932
-</td>
-<td style="text-align:left;">
-Cancer_Drivers; BRCA_ac; Immune_OCRs
-</td>
-<td style="text-align:left;">
-Breast cancer
 </td>
 <td style="text-align:right;">
 554
@@ -1256,6 +1257,9 @@ Breast cancer
 <tr>
 <td style="text-align:left;">
 rs6787391
+</td>
+<td style="text-align:left;">
+Breast cancer
 </td>
 <td style="text-align:left;">
 ITPR1
@@ -1269,6 +1273,9 @@ ITPR1
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+BRCA_OCRs
+</td>
+<td style="text-align:left;">
 intron_variant; non_coding_transcript_variant
 </td>
 <td style="text-align:right;">
@@ -1277,12 +1284,6 @@ intron_variant; non_coding_transcript_variant
 <td style="text-align:right;">
 0.6036917
 </td>
-<td style="text-align:left;">
-BRCA_OCRs
-</td>
-<td style="text-align:left;">
-Breast cancer
-</td>
 <td style="text-align:right;">
 281
 </td>
@@ -1290,6 +1291,8 @@ Breast cancer
 <tr>
 <td style="text-align:left;">
 rs2267370
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 PLA2G6
@@ -1305,6 +1308,9 @@ TMEM184B
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+BRCA_OCRs; Conserved_LindbladToh; BRCA_ac; Immune_OCRs; Immune_h3k27ac
+</td>
+<td style="text-align:left;">
 intron_variant; NMD_transcript_variant; non_coding_transcript_variant
 </td>
 <td style="text-align:right;">
@@ -1313,11 +1319,6 @@ intron_variant; NMD_transcript_variant; non_coding_transcript_variant
 <td style="text-align:right;">
 0.5933696
 </td>
-<td style="text-align:left;">
-BRCA_OCRs; Conserved_LindbladToh; BRCA_ac; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
-</td>
 <td style="text-align:right;">
 1694
 </td>
@@ -1325,6 +1326,8 @@ BRCA_OCRs; Conserved_LindbladToh; BRCA_ac; Immune_OCRs; Immune_h3k27ac
 <tr>
 <td style="text-align:left;">
 rs170801
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 AQP4-AS1 CHST9
@@ -1338,6 +1341,9 @@ AQP4-AS1 CHST9
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+BRCA_OCRs
+</td>
+<td style="text-align:left;">
 intron_variant; non_coding_transcript_variant
 </td>
 <td style="text-align:right;">
@@ -1345,11 +1351,6 @@ intron_variant; non_coding_transcript_variant
 </td>
 <td style="text-align:right;">
 0.5739108
-</td>
-<td style="text-align:left;">
-BRCA_OCRs
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 1544
@@ -1360,7 +1361,11 @@ BRCA_OCRs
 rs11571815
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
 BRCA2 IFIT1P1 N4BP2L1
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -1379,10 +1384,6 @@ intron_variant; NMD_transcript_variant
 <td style="text-align:right;">
 0.5726614
 </td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:left;">
-</td>
 <td style="text-align:right;">
 1271
 </td>
@@ -1392,16 +1393,21 @@ intron_variant; NMD_transcript_variant
 rs72658084
 </td>
 <td style="text-align:left;">
-HNF4G
 </td>
 <td style="text-align:left;">
 HNF4G
 </td>
 <td style="text-align:left;">
+HNF4G
 </td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+Cancer_Drivers; BRCA_OCRs
 </td>
 <td style="text-align:left;">
 non_coding_transcript_variant; intron_variant
@@ -1412,11 +1418,6 @@ non_coding_transcript_variant; intron_variant
 <td style="text-align:right;">
 0.5590320
 </td>
-<td style="text-align:left;">
-Cancer_Drivers; BRCA_OCRs
-</td>
-<td style="text-align:left;">
-</td>
 <td style="text-align:right;">
 897
 </td>
@@ -1426,6 +1427,7 @@ Cancer_Drivers; BRCA_OCRs
 rs56387622
 </td>
 <td style="text-align:left;">
+Breast cancer
 </td>
 <td style="text-align:left;">
 </td>
@@ -1434,6 +1436,11 @@ rs56387622
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
 </td>
 <td style="text-align:left;">
 intron_variant
@@ -1444,12 +1451,6 @@ intron_variant
 <td style="text-align:right;">
 0.5171842
 </td>
-<td style="text-align:left;">
-BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
-Breast cancer
-</td>
 <td style="text-align:right;">
 310
 </td>
@@ -1457,6 +1458,8 @@ Breast cancer
 <tr>
 <td style="text-align:left;">
 rs1863868
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 RP11-438D8.2 ZBTB38
@@ -1471,6 +1474,9 @@ RP11-438D8.2 ZBTB38
 ZBTB38
 </td>
 <td style="text-align:left;">
+Conserved_LindbladToh; BRCA_ac; Immune_OCRs; Immune_h3k27ac
+</td>
+<td style="text-align:left;">
 5_prime_UTR_variant; non_coding_transcript_exon_variant
 </td>
 <td style="text-align:right;">
@@ -1479,11 +1485,6 @@ ZBTB38
 <td style="text-align:right;">
 0.4695606
 </td>
-<td style="text-align:left;">
-Conserved_LindbladToh; BRCA_ac; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
-</td>
 <td style="text-align:right;">
 363
 </td>
@@ -1491,6 +1492,8 @@ Conserved_LindbladToh; BRCA_ac; Immune_OCRs; Immune_h3k27ac
 <tr>
 <td style="text-align:left;">
 rs6445068
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 RP11-408H1.3
@@ -1504,6 +1507,9 @@ RP11-408H1.3
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+BRCA_OCRs; Conserved_LindbladToh; BRCA_ac; Immune_OCRs; Immune_h3k27ac
+</td>
+<td style="text-align:left;">
 non_coding_transcript_variant; intron_variant
 </td>
 <td style="text-align:right;">
@@ -1512,11 +1518,6 @@ non_coding_transcript_variant; intron_variant
 <td style="text-align:right;">
 0.4680977
 </td>
-<td style="text-align:left;">
-BRCA_OCRs; Conserved_LindbladToh; BRCA_ac; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
-</td>
 <td style="text-align:right;">
 382
 </td>
@@ -1524,6 +1525,8 @@ BRCA_OCRs; Conserved_LindbladToh; BRCA_ac; Immune_OCRs; Immune_h3k27ac
 <tr>
 <td style="text-align:left;">
 rs58242049
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 KRT18P41
@@ -1537,17 +1540,15 @@ KRT18P41
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+BRCA_OCRs; Immune_OCRs
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 -5.569017
 </td>
 <td style="text-align:right;">
 0.4531948
-</td>
-<td style="text-align:left;">
-BRCA_OCRs; Immune_OCRs
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 623
@@ -1556,6 +1557,9 @@ BRCA_OCRs; Immune_OCRs
 <tr>
 <td style="text-align:left;">
 rs4971059
+</td>
+<td style="text-align:left;">
+Breast cancer
 </td>
 <td style="text-align:left;">
 KRTCAP2 RP11-201K10.3 TRIM46 MUC1
@@ -1572,6 +1576,9 @@ MUC1
 THBS3
 </td>
 <td style="text-align:left;">
+Cancer_Drivers; BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
+</td>
+<td style="text-align:left;">
 intron_variant; non_coding_transcript_variant
 </td>
 <td style="text-align:right;">
@@ -1580,12 +1587,6 @@ intron_variant; non_coding_transcript_variant
 <td style="text-align:right;">
 0.4466607
 </td>
-<td style="text-align:left;">
-Cancer_Drivers; BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
-Breast cancer
-</td>
 <td style="text-align:right;">
 78
 </td>
@@ -1593,6 +1594,8 @@ Breast cancer
 <tr>
 <td style="text-align:left;">
 rs10512383
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 RP11-438P9.2
@@ -1607,17 +1610,15 @@ KLF4
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+Cancer_Drivers; BRCA_ac; Immune_OCRs; Immune_h3k27ac
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 -6.414597
 </td>
 <td style="text-align:right;">
 0.4330148
-</td>
-<td style="text-align:left;">
-Cancer_Drivers; BRCA_ac; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 990
@@ -1626,6 +1627,8 @@ Cancer_Drivers; BRCA_ac; Immune_OCRs; Immune_h3k27ac
 <tr>
 <td style="text-align:left;">
 rs946008
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 ZMIZ1
@@ -1639,6 +1642,9 @@ ZMIZ1
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
+</td>
+<td style="text-align:left;">
 intron_variant
 </td>
 <td style="text-align:right;">
@@ -1647,11 +1653,6 @@ intron_variant
 <td style="text-align:right;">
 0.4233797
 </td>
-<td style="text-align:left;">
-BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
-</td>
 <td style="text-align:right;">
 1060
 </td>
@@ -1659,6 +1660,8 @@ BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
 <tr>
 <td style="text-align:left;">
 rs232320
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 AQP4-AS1 CHST9
@@ -1672,6 +1675,9 @@ AQP4-AS1 CHST9
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+BRCA_OCRs
+</td>
+<td style="text-align:left;">
 intron_variant; non_coding_transcript_variant
 </td>
 <td style="text-align:right;">
@@ -1679,11 +1685,6 @@ intron_variant; non_coding_transcript_variant
 </td>
 <td style="text-align:right;">
 0.4218545
-</td>
-<td style="text-align:left;">
-BRCA_OCRs
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 1544
@@ -1694,7 +1695,12 @@ BRCA_OCRs
 rs11571818
 </td>
 <td style="text-align:left;">
+Squamous cell lung carcinoma; Cancer (pleiotropy)
+</td>
+<td style="text-align:left;">
 BRCA2 IFIT1P1 N4BP2L1
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -1713,11 +1719,6 @@ intron_variant; NMD_transcript_variant
 <td style="text-align:right;">
 0.4214755
 </td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:left;">
-Squamous cell lung carcinoma; Cancer (pleiotropy)
-</td>
 <td style="text-align:right;">
 1271
 </td>
@@ -1725,6 +1726,9 @@ Squamous cell lung carcinoma; Cancer (pleiotropy)
 <tr>
 <td style="text-align:left;">
 rs11642015
+</td>
+<td style="text-align:left;">
+Urinary sodium excretion; Diastolic blood pressure; Pulse pressure; Mean arterial pressure; Systolic blood pressure; Systolic blood pressure x smoking status (current vs non-current) interaction (2df test); Systolic blood pressure x smoking status (ever vs never) interaction (2df test); Diastolic blood pressure x smoking status (ever vs never) interaction (2df test); Diastolic blood pressure x smoking status (current vs non-current) interaction (2df test); Body mass index; Blood urea nitrogen levels; Hand grip strength; Body mass index variance
 </td>
 <td style="text-align:left;">
 FTO
@@ -1738,6 +1742,9 @@ FTO
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+BRCA_OCRs; Immune_OCRs
+</td>
+<td style="text-align:left;">
 intron_variant; non_coding_transcript_variant; NMD_transcript_variant
 </td>
 <td style="text-align:right;">
@@ -1745,12 +1752,6 @@ intron_variant; non_coding_transcript_variant; NMD_transcript_variant
 </td>
 <td style="text-align:right;">
 0.4026367
-</td>
-<td style="text-align:left;">
-BRCA_OCRs; Immune_OCRs
-</td>
-<td style="text-align:left;">
-Urinary sodium excretion; Diastolic blood pressure; Pulse pressure; Mean arterial pressure; Systolic blood pressure; Systolic blood pressure x smoking status (current vs non-current) interaction (2df test); Systolic blood pressure x smoking status (ever vs never) interaction (2df test); Diastolic blood pressure x smoking status (ever vs never) interaction (2df test); Diastolic blood pressure x smoking status (current vs non-current) interaction (2df test); Body mass index; Blood urea nitrogen levels; Hand grip strength; Body mass index variance
 </td>
 <td style="text-align:right;">
 1458
@@ -1761,16 +1762,21 @@ Urinary sodium excretion; Diastolic blood pressure; Pulse pressure; Mean arteria
 rs17035305
 </td>
 <td style="text-align:left;">
-PEX14
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 PEX14
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+PEX14
+</td>
+<td style="text-align:left;">
+Conserved_LindbladToh; BRCA_ac
 </td>
 <td style="text-align:left;">
 intron_variant
@@ -1781,11 +1787,6 @@ intron_variant
 <td style="text-align:right;">
 0.3971208
 </td>
-<td style="text-align:left;">
-Conserved_LindbladToh; BRCA_ac
-</td>
-<td style="text-align:left;">
-</td>
 <td style="text-align:right;">
 7
 </td>
@@ -1795,16 +1796,22 @@ Conserved_LindbladToh; BRCA_ac
 rs2871960
 </td>
 <td style="text-align:left;">
-ZBTB38
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:left;">
+Waist circumference adjusted for BMI (joint analysis main effects and physical activity interaction)
 </td>
 <td style="text-align:left;">
 ZBTB38
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+ZBTB38
+</td>
+<td style="text-align:left;">
+BRCA_OCRs; Conserved_LindbladToh; BRCA_ac; Immune_OCRs; Immune_h3k27ac
 </td>
 <td style="text-align:left;">
 intron_variant; non_coding_transcript_variant; 5_prime_UTR_variant
@@ -1815,12 +1822,6 @@ intron_variant; non_coding_transcript_variant; 5_prime_UTR_variant
 <td style="text-align:right;">
 0.3870993
 </td>
-<td style="text-align:left;">
-BRCA_OCRs; Conserved_LindbladToh; BRCA_ac; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
-Waist circumference adjusted for BMI (joint analysis main effects and physical activity interaction)
-</td>
 <td style="text-align:right;">
 363
 </td>
@@ -1828,6 +1829,8 @@ Waist circumference adjusted for BMI (joint analysis main effects and physical a
 <tr>
 <td style="text-align:left;">
 rs9868605
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 RP11-408H1.3
@@ -1841,6 +1844,9 @@ RP11-408H1.3
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+BRCA_OCRs; BRCA_ac; Immune_OCRs; Immune_h3k27ac
+</td>
+<td style="text-align:left;">
 non_coding_transcript_variant; intron_variant
 </td>
 <td style="text-align:right;">
@@ -1849,11 +1855,6 @@ non_coding_transcript_variant; intron_variant
 <td style="text-align:right;">
 0.3843449
 </td>
-<td style="text-align:left;">
-BRCA_OCRs; BRCA_ac; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
-</td>
 <td style="text-align:right;">
 382
 </td>
@@ -1861,6 +1862,8 @@ BRCA_OCRs; BRCA_ac; Immune_OCRs; Immune_h3k27ac
 <tr>
 <td style="text-align:left;">
 rs1368298
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 EBF1
@@ -1874,6 +1877,9 @@ EBF1
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+Conserved_LindbladToh; Immune_OCRs; Immune_h3k27ac
+</td>
+<td style="text-align:left;">
 non_coding_transcript_exon_variant; synonymous_variant
 </td>
 <td style="text-align:right;">
@@ -1882,11 +1888,6 @@ non_coding_transcript_exon_variant; synonymous_variant
 <td style="text-align:right;">
 0.3837221
 </td>
-<td style="text-align:left;">
-Conserved_LindbladToh; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
-</td>
 <td style="text-align:right;">
 614
 </td>
@@ -1894,6 +1895,8 @@ Conserved_LindbladToh; Immune_OCRs; Immune_h3k27ac
 <tr>
 <td style="text-align:left;">
 rs10978910
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 RP11-438P9.1 RP11-438P9.2
@@ -1908,17 +1911,15 @@ KLF4
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+Cancer_Drivers
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 -6.784819
 </td>
 <td style="text-align:right;">
 0.3782438
-</td>
-<td style="text-align:left;">
-Cancer_Drivers
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 990
@@ -1939,6 +1940,11 @@ rs6787229
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+Conserved_LindbladToh; Immune_OCRs
+</td>
+<td style="text-align:left;">
 intron_variant
 </td>
 <td style="text-align:right;">
@@ -1947,11 +1953,6 @@ intron_variant
 <td style="text-align:right;">
 0.3741931
 </td>
-<td style="text-align:left;">
-Conserved_LindbladToh; Immune_OCRs
-</td>
-<td style="text-align:left;">
-</td>
 <td style="text-align:right;">
 310
 </td>
@@ -1959,6 +1960,8 @@ Conserved_LindbladToh; Immune_OCRs
 <tr>
 <td style="text-align:left;">
 rs11787627
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 ASTN2 RP11-67K19.3
@@ -1972,6 +1975,9 @@ ASTN2 RP11-67K19.3
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+Conserved_LindbladToh; Immune_OCRs
+</td>
+<td style="text-align:left;">
 non_coding_transcript_variant; intron_variant
 </td>
 <td style="text-align:right;">
@@ -1979,11 +1985,6 @@ non_coding_transcript_variant; intron_variant
 </td>
 <td style="text-align:right;">
 0.3706214
-</td>
-<td style="text-align:left;">
-Conserved_LindbladToh; Immune_OCRs
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 996
@@ -1994,17 +1995,23 @@ Conserved_LindbladToh; Immune_OCRs
 rs6569648
 </td>
 <td style="text-align:left;">
-L3MBTL3
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:left;">
+Height; Body mass index; Hip circumference; Lymphocyte counts; Breast cancer (estrogen-receptor negative); Breast cancer
 </td>
 <td style="text-align:left;">
 L3MBTL3
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
 L3MBTL3
+</td>
+<td style="text-align:left;">
+L3MBTL3
+</td>
+<td style="text-align:left;">
+Immune_OCRs; Immune_h3k27ac
 </td>
 <td style="text-align:left;">
 intron_variant
@@ -2014,12 +2021,6 @@ intron_variant
 </td>
 <td style="text-align:right;">
 0.3676006
-</td>
-<td style="text-align:left;">
-Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
-Height; Body mass index; Hip circumference; Lymphocyte counts; Breast cancer (estrogen-receptor negative); Breast cancer
 </td>
 <td style="text-align:right;">
 717
@@ -2040,6 +2041,10 @@ rs34885531
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
 non_coding_transcript_variant; intron_variant
 </td>
 <td style="text-align:right;">
@@ -2048,10 +2053,6 @@ non_coding_transcript_variant; intron_variant
 <td style="text-align:right;">
 0.3207570
 </td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:left;">
-</td>
 <td style="text-align:right;">
 1333
 </td>
@@ -2059,6 +2060,9 @@ non_coding_transcript_variant; intron_variant
 <tr>
 <td style="text-align:left;">
 rs1432679
+</td>
+<td style="text-align:left;">
+Breast cancer; Breast cancer (estrogen-receptor negative)
 </td>
 <td style="text-align:left;">
 EBF1
@@ -2072,6 +2076,9 @@ EBF1
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+Immune_OCRs; Immune_h3k27ac
+</td>
+<td style="text-align:left;">
 non_coding_transcript_variant; intron_variant
 </td>
 <td style="text-align:right;">
@@ -2080,12 +2087,6 @@ non_coding_transcript_variant; intron_variant
 <td style="text-align:right;">
 0.3123171
 </td>
-<td style="text-align:left;">
-Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
-Breast cancer; Breast cancer (estrogen-receptor negative)
-</td>
 <td style="text-align:right;">
 614
 </td>
@@ -2093,6 +2094,8 @@ Breast cancer; Breast cancer (estrogen-receptor negative)
 <tr>
 <td style="text-align:left;">
 rs3814316
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 KRTCAP2 RP11-201K10.3 TRIM46 MUC1
@@ -2109,6 +2112,9 @@ MUC1
 THBS3
 </td>
 <td style="text-align:left;">
+Cancer_Drivers; BRCA_OCRs; Conserved_LindbladToh; BRCA_ac; Immune_OCRs
+</td>
+<td style="text-align:left;">
 synonymous_variant; non_coding_transcript_exon_variant; intron_variant
 </td>
 <td style="text-align:right;">
@@ -2117,11 +2123,6 @@ synonymous_variant; non_coding_transcript_exon_variant; intron_variant
 <td style="text-align:right;">
 0.3122152
 </td>
-<td style="text-align:left;">
-Cancer_Drivers; BRCA_OCRs; Conserved_LindbladToh; BRCA_ac; Immune_OCRs
-</td>
-<td style="text-align:left;">
-</td>
 <td style="text-align:right;">
 78
 </td>
@@ -2129,6 +2130,8 @@ Cancer_Drivers; BRCA_OCRs; Conserved_LindbladToh; BRCA_ac; Immune_OCRs
 <tr>
 <td style="text-align:left;">
 rs7626526
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 RP11-285B24.1
@@ -2142,6 +2145,9 @@ RP11-285B24.1
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
+</td>
+<td style="text-align:left;">
 non_coding_transcript_variant; intron_variant
 </td>
 <td style="text-align:right;">
@@ -2149,11 +2155,6 @@ non_coding_transcript_variant; intron_variant
 </td>
 <td style="text-align:right;">
 0.3101453
-</td>
-<td style="text-align:left;">
-BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 317
@@ -2172,7 +2173,12 @@ rs7463114
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
 RP11-486M23.2
+</td>
+<td style="text-align:left;">
+BRCA_OCRs; Conserved_LindbladToh
 </td>
 <td style="text-align:left;">
 </td>
@@ -2182,11 +2188,6 @@ RP11-486M23.2
 <td style="text-align:right;">
 0.2917698
 </td>
-<td style="text-align:left;">
-BRCA_OCRs; Conserved_LindbladToh
-</td>
-<td style="text-align:left;">
-</td>
 <td style="text-align:right;">
 871
 </td>
@@ -2194,6 +2195,8 @@ BRCA_OCRs; Conserved_LindbladToh
 <tr>
 <td style="text-align:left;">
 rs78029804
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 PRC1 PRC1-AS1 VPS33B
@@ -2209,6 +2212,9 @@ RCCD1
 RCCD1
 </td>
 <td style="text-align:left;">
+BRCA_ac; Immune_OCRs; Immune_h3k27ac
+</td>
+<td style="text-align:left;">
 NMD_transcript_variant; intron_variant
 </td>
 <td style="text-align:right;">
@@ -2217,11 +2223,6 @@ NMD_transcript_variant; intron_variant
 <td style="text-align:right;">
 0.2874778
 </td>
-<td style="text-align:left;">
-BRCA_ac; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
-</td>
 <td style="text-align:right;">
 1421
 </td>
@@ -2229,6 +2230,8 @@ BRCA_ac; Immune_OCRs; Immune_h3k27ac
 <tr>
 <td style="text-align:left;">
 rs56681946
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 KCNN4
@@ -2245,6 +2248,9 @@ ZNF404
 KCNN4
 </td>
 <td style="text-align:left;">
+BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
+</td>
+<td style="text-align:left;">
 intron_variant; NMD_transcript_variant
 </td>
 <td style="text-align:right;">
@@ -2253,11 +2259,6 @@ intron_variant; NMD_transcript_variant
 <td style="text-align:right;">
 0.2801667
 </td>
-<td style="text-align:left;">
-BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
-</td>
 <td style="text-align:right;">
 1608
 </td>
@@ -2265,6 +2266,9 @@ BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
 <tr>
 <td style="text-align:left;">
 rs55872725
+</td>
+<td style="text-align:left;">
+Systolic blood pressure x alcohol consumption interaction (2df test); Body mass index; Body fat percentage; Strenuous sports or other exercises
 </td>
 <td style="text-align:left;">
 FTO
@@ -2278,6 +2282,9 @@ FTO
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+BRCA_OCRs
+</td>
+<td style="text-align:left;">
 intron_variant; non_coding_transcript_variant; NMD_transcript_variant
 </td>
 <td style="text-align:right;">
@@ -2286,12 +2293,6 @@ intron_variant; non_coding_transcript_variant; NMD_transcript_variant
 <td style="text-align:right;">
 0.2786269
 </td>
-<td style="text-align:left;">
-BRCA_OCRs
-</td>
-<td style="text-align:left;">
-Systolic blood pressure x alcohol consumption interaction (2df test); Body mass index; Body fat percentage; Strenuous sports or other exercises
-</td>
 <td style="text-align:right;">
 1458
 </td>
@@ -2299,6 +2300,8 @@ Systolic blood pressure x alcohol consumption interaction (2df test); Body mass 
 <tr>
 <td style="text-align:left;">
 rs12883049
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 RP11-964E11.2 PAX9
@@ -2312,6 +2315,9 @@ RP11-964E11.2 PAX9
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+BRCA_OCRs; Conserved_LindbladToh; BRCA_ac; Immune_OCRs
+</td>
+<td style="text-align:left;">
 intron_variant; non_coding_transcript_exon_variant
 </td>
 <td style="text-align:right;">
@@ -2319,11 +2325,6 @@ intron_variant; non_coding_transcript_exon_variant
 </td>
 <td style="text-align:right;">
 0.2722238
-</td>
-<td style="text-align:left;">
-BRCA_OCRs; Conserved_LindbladToh; BRCA_ac; Immune_OCRs
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 1333
@@ -2334,16 +2335,22 @@ BRCA_OCRs; Conserved_LindbladToh; BRCA_ac; Immune_OCRs
 rs17838698
 </td>
 <td style="text-align:left;">
-TGFBR2
+Breast cancer
 </td>
 <td style="text-align:left;">
 TGFBR2
 </td>
 <td style="text-align:left;">
+TGFBR2
 </td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+Cancer_Drivers; Immune_OCRs; Immune_h3k27ac
 </td>
 <td style="text-align:left;">
 intron_variant; non_coding_transcript_variant
@@ -2354,12 +2361,6 @@ intron_variant; non_coding_transcript_variant
 <td style="text-align:right;">
 0.2707542
 </td>
-<td style="text-align:left;">
-Cancer_Drivers; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
-Breast cancer
-</td>
 <td style="text-align:right;">
 299
 </td>
@@ -2369,9 +2370,6 @@ Breast cancer
 rs12609846
 </td>
 <td style="text-align:left;">
-KCNN4
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 KCNN4
@@ -2380,6 +2378,14 @@ KCNN4
 </td>
 <td style="text-align:left;">
 KCNN4
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+KCNN4
+</td>
+<td style="text-align:left;">
+BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
 </td>
 <td style="text-align:left;">
 intron_variant; NMD_transcript_variant
@@ -2390,11 +2396,6 @@ intron_variant; NMD_transcript_variant
 <td style="text-align:right;">
 0.2565746
 </td>
-<td style="text-align:left;">
-BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
-</td>
 <td style="text-align:right;">
 1608
 </td>
@@ -2402,6 +2403,8 @@ BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
 <tr>
 <td style="text-align:left;">
 rs10955009
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 AC090453.1
@@ -2416,17 +2419,15 @@ ZNF703
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+BRCA_OCRs
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 8.034188
 </td>
 <td style="text-align:right;">
 0.2519537
-</td>
-<td style="text-align:left;">
-BRCA_OCRs
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 875
@@ -2437,6 +2438,9 @@ BRCA_OCRs
 rs11624164
 </td>
 <td style="text-align:left;">
+Obesity-related traits
+</td>
+<td style="text-align:left;">
 RAD51B
 </td>
 <td style="text-align:left;">
@@ -2446,6 +2450,9 @@ RAD51B
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+Conserved_LindbladToh; Immune_OCRs; Immune_h3k27ac
 </td>
 <td style="text-align:left;">
 intron_variant; non_coding_transcript_variant
@@ -2456,12 +2463,6 @@ intron_variant; non_coding_transcript_variant
 <td style="text-align:right;">
 0.2510635
 </td>
-<td style="text-align:left;">
-Conserved_LindbladToh; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
-Obesity-related traits
-</td>
 <td style="text-align:right;">
 1355
 </td>
@@ -2469,6 +2470,8 @@ Obesity-related traits
 <tr>
 <td style="text-align:left;">
 rs17755925
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 RAD51B
@@ -2482,6 +2485,9 @@ RAD51B
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+BRCA_OCRs; Conserved_LindbladToh; Immune_OCRs; Immune_h3k27ac
+</td>
+<td style="text-align:left;">
 intron_variant; non_coding_transcript_variant
 </td>
 <td style="text-align:right;">
@@ -2489,11 +2495,6 @@ intron_variant; non_coding_transcript_variant
 </td>
 <td style="text-align:right;">
 0.2431429
-</td>
-<td style="text-align:left;">
-BRCA_OCRs; Conserved_LindbladToh; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 1355
@@ -2515,16 +2516,16 @@ rs497006
 </td>
 <td style="text-align:left;">
 </td>
+<td style="text-align:left;">
+Conserved_LindbladToh
+</td>
+<td style="text-align:left;">
+</td>
 <td style="text-align:right;">
 9.747594
 </td>
 <td style="text-align:right;">
 0.2406796
-</td>
-<td style="text-align:left;">
-Conserved_LindbladToh
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 991
@@ -2533,6 +2534,8 @@ Conserved_LindbladToh
 <tr>
 <td style="text-align:left;">
 rs9864437
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 CMSS1 FILIP1L
@@ -2546,6 +2549,9 @@ CMSS1 FILIP1L
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+BRCA_OCRs; Conserved_LindbladToh; Immune_OCRs; Immune_h3k27ac
+</td>
+<td style="text-align:left;">
 intron_variant; NMD_transcript_variant
 </td>
 <td style="text-align:right;">
@@ -2554,11 +2560,6 @@ intron_variant; NMD_transcript_variant
 <td style="text-align:right;">
 0.2397658
 </td>
-<td style="text-align:left;">
-BRCA_OCRs; Conserved_LindbladToh; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
-</td>
 <td style="text-align:right;">
 340
 </td>
@@ -2566,6 +2567,8 @@ BRCA_OCRs; Conserved_LindbladToh; Immune_OCRs; Immune_h3k27ac
 <tr>
 <td style="text-align:left;">
 rs7705465
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 ARRDC3
@@ -2579,6 +2582,9 @@ ARRDC3
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+BRCA_OCRs; BRCA_ac; Immune_OCRs; Immune_h3k27ac
+</td>
+<td style="text-align:left;">
 non_coding_transcript_variant; intron_variant
 </td>
 <td style="text-align:right;">
@@ -2586,11 +2592,6 @@ non_coding_transcript_variant; intron_variant
 </td>
 <td style="text-align:right;">
 0.2337505
-</td>
-<td style="text-align:left;">
-BRCA_OCRs; BRCA_ac; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 575
@@ -2601,17 +2602,22 @@ BRCA_OCRs; BRCA_ac; Immune_OCRs; Immune_h3k27ac
 rs244353
 </td>
 <td style="text-align:left;">
-STXBP4
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 STXBP4
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
 STXBP4
 </td>
 <td style="text-align:left;">
+STXBP4
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+BRCA_OCRs; Immune_OCRs
 </td>
 <td style="text-align:left;">
 intron_variant
@@ -2622,11 +2628,6 @@ intron_variant
 <td style="text-align:right;">
 0.2287353
 </td>
-<td style="text-align:left;">
-BRCA_OCRs; Immune_OCRs
-</td>
-<td style="text-align:left;">
-</td>
 <td style="text-align:right;">
 1515
 </td>
@@ -2636,9 +2637,6 @@ BRCA_OCRs; Immune_OCRs
 rs12463319
 </td>
 <td style="text-align:left;">
-KCNN4
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 KCNN4
@@ -2647,6 +2645,14 @@ KCNN4
 </td>
 <td style="text-align:left;">
 KCNN4
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+KCNN4
+</td>
+<td style="text-align:left;">
+BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
 </td>
 <td style="text-align:left;">
 intron_variant; NMD_transcript_variant
@@ -2656,11 +2662,6 @@ intron_variant; NMD_transcript_variant
 </td>
 <td style="text-align:right;">
 0.2286723
-</td>
-<td style="text-align:left;">
-BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 1608
@@ -2682,16 +2683,16 @@ rs2796395
 </td>
 <td style="text-align:left;">
 </td>
+<td style="text-align:left;">
+BRCA_OCRs; Immune_OCRs
+</td>
+<td style="text-align:left;">
+</td>
 <td style="text-align:right;">
 -5.114828
 </td>
 <td style="text-align:right;">
 0.2224377
-</td>
-<td style="text-align:left;">
-BRCA_OCRs; Immune_OCRs
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 105
@@ -2700,6 +2701,8 @@ BRCA_OCRs; Immune_OCRs
 <tr>
 <td style="text-align:left;">
 rs2290202
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 RCCD1 PRC1 PRC1-AS1 Y_RNA
@@ -2716,6 +2719,9 @@ RCCD1
 RCCD1
 </td>
 <td style="text-align:left;">
+Cancer_Drivers; Conserved_LindbladToh
+</td>
+<td style="text-align:left;">
 3_prime_UTR_variant; NMD_transcript_variant; non_coding_transcript_variant; intron_variant; non_coding_transcript_exon_variant
 </td>
 <td style="text-align:right;">
@@ -2724,11 +2730,6 @@ RCCD1
 <td style="text-align:right;">
 0.2190059
 </td>
-<td style="text-align:left;">
-Cancer_Drivers; Conserved_LindbladToh
-</td>
-<td style="text-align:left;">
-</td>
 <td style="text-align:right;">
 1421
 </td>
@@ -2736,6 +2737,8 @@ Cancer_Drivers; Conserved_LindbladToh
 <tr>
 <td style="text-align:left;">
 rs552647
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 NEK10
@@ -2749,6 +2752,9 @@ NEK10
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
+</td>
+<td style="text-align:left;">
 intron_variant; non_coding_transcript_variant
 </td>
 <td style="text-align:right;">
@@ -2756,11 +2762,6 @@ intron_variant; non_coding_transcript_variant
 </td>
 <td style="text-align:right;">
 0.2168473
-</td>
-<td style="text-align:left;">
-BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 297
@@ -2771,16 +2772,21 @@ BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
 rs72658074
 </td>
 <td style="text-align:left;">
-HNF4G
 </td>
 <td style="text-align:left;">
 HNF4G
 </td>
 <td style="text-align:left;">
+HNF4G
 </td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+Cancer_Drivers; Immune_OCRs
 </td>
 <td style="text-align:left;">
 </td>
@@ -2790,11 +2796,6 @@ HNF4G
 <td style="text-align:right;">
 0.2120871
 </td>
-<td style="text-align:left;">
-Cancer_Drivers; Immune_OCRs
-</td>
-<td style="text-align:left;">
-</td>
 <td style="text-align:right;">
 897
 </td>
@@ -2802,6 +2803,8 @@ Cancer_Drivers; Immune_OCRs
 <tr>
 <td style="text-align:left;">
 rs10442
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 SSBP4 ISYNA1 CTD-3137H5.1 ELL AC010335.1
@@ -2816,6 +2819,9 @@ SSBP4 ISYNA1 CTD-3137H5.1 ELL AC010335.1
 LRRC25 ELL
 </td>
 <td style="text-align:left;">
+BRCA_OCRs; Conserved_LindbladToh; Immune_OCRs; Immune_h3k27ac
+</td>
+<td style="text-align:left;">
 3_prime_UTR_variant; NMD_transcript_variant
 </td>
 <td style="text-align:right;">
@@ -2823,11 +2829,6 @@ LRRC25 ELL
 </td>
 <td style="text-align:right;">
 0.2117520
-</td>
-<td style="text-align:left;">
-BRCA_OCRs; Conserved_LindbladToh; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 1593
@@ -2838,7 +2839,11 @@ BRCA_OCRs; Conserved_LindbladToh; Immune_OCRs; Immune_h3k27ac
 rs35344708
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
 RPL29P3 NKX2-8
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -2857,10 +2862,6 @@ non_coding_transcript_variant; intron_variant
 <td style="text-align:right;">
 0.2077491
 </td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:left;">
-</td>
 <td style="text-align:right;">
 1333
 </td>
@@ -2868,6 +2869,8 @@ non_coding_transcript_variant; intron_variant
 <tr>
 <td style="text-align:left;">
 rs9383590
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -2881,17 +2884,15 @@ ESR1
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+Cancer_Drivers; BRCA_OCRs; BRCA_ac
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 -9.398127
 </td>
 <td style="text-align:right;">
 0.2066214
-</td>
-<td style="text-align:left;">
-Cancer_Drivers; BRCA_OCRs; BRCA_ac
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 730
@@ -2900,6 +2901,8 @@ Cancer_Drivers; BRCA_OCRs; BRCA_ac
 <tr>
 <td style="text-align:left;">
 rs10096213
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 AC090453.1
@@ -2914,17 +2917,15 @@ ZNF703
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+Conserved_LindbladToh
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 8.016239
 </td>
 <td style="text-align:right;">
 0.2047510
-</td>
-<td style="text-align:left;">
-Conserved_LindbladToh
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 875
@@ -2935,16 +2936,21 @@ Conserved_LindbladToh
 rs1155705
 </td>
 <td style="text-align:left;">
-TGFBR2
 </td>
 <td style="text-align:left;">
 TGFBR2
 </td>
 <td style="text-align:left;">
+TGFBR2
 </td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+Cancer_Drivers; BRCA_OCRs; Conserved_LindbladToh; Immune_OCRs; Immune_h3k27ac
 </td>
 <td style="text-align:left;">
 splice_region_variant; intron_variant; non_coding_transcript_variant
@@ -2955,11 +2961,6 @@ splice_region_variant; intron_variant; non_coding_transcript_variant
 <td style="text-align:right;">
 0.2043421
 </td>
-<td style="text-align:left;">
-Cancer_Drivers; BRCA_OCRs; Conserved_LindbladToh; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
-</td>
 <td style="text-align:right;">
 299
 </td>
@@ -2967,6 +2968,8 @@ Cancer_Drivers; BRCA_OCRs; Conserved_LindbladToh; Immune_OCRs; Immune_h3k27ac
 <tr>
 <td style="text-align:left;">
 rs9397068
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -2980,17 +2983,15 @@ ESR1
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+Cancer_Drivers; BRCA_OCRs; BRCA_ac
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 -9.396370
 </td>
 <td style="text-align:right;">
 0.2036078
-</td>
-<td style="text-align:left;">
-Cancer_Drivers; BRCA_OCRs; BRCA_ac
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 730
@@ -3012,16 +3013,16 @@ rs7545327
 </td>
 <td style="text-align:left;">
 </td>
+<td style="text-align:left;">
+BRCA_OCRs; Immune_OCRs
+</td>
+<td style="text-align:left;">
+</td>
 <td style="text-align:right;">
 -5.092812
 </td>
 <td style="text-align:right;">
 0.2012310
-</td>
-<td style="text-align:left;">
-BRCA_OCRs; Immune_OCRs
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 105
@@ -3030,6 +3031,8 @@ BRCA_OCRs; Immune_OCRs
 <tr>
 <td style="text-align:left;">
 rs17756147
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 RAD51B
@@ -3043,6 +3046,9 @@ RAD51B
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+Conserved_LindbladToh; BRCA_ac; Immune_OCRs; Immune_h3k27ac
+</td>
+<td style="text-align:left;">
 intron_variant; non_coding_transcript_variant
 </td>
 <td style="text-align:right;">
@@ -3051,11 +3057,6 @@ intron_variant; non_coding_transcript_variant
 <td style="text-align:right;">
 0.1992841
 </td>
-<td style="text-align:left;">
-Conserved_LindbladToh; BRCA_ac; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
-</td>
 <td style="text-align:right;">
 1355
 </td>
@@ -3063,6 +3064,8 @@ Conserved_LindbladToh; BRCA_ac; Immune_OCRs; Immune_h3k27ac
 <tr>
 <td style="text-align:left;">
 rs12434438
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 HIF1A HIF1A-AS2 RP11-618G20.1
@@ -3076,6 +3079,9 @@ HIF1A HIF1A-AS2 RP11-618G20.1
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+Immune_OCRs; Immune_h3k27ac
+</td>
+<td style="text-align:left;">
 intron_variant; non_coding_transcript_variant
 </td>
 <td style="text-align:right;">
@@ -3084,11 +3090,6 @@ intron_variant; non_coding_transcript_variant
 <td style="text-align:right;">
 0.1938930
 </td>
-<td style="text-align:left;">
-Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
-</td>
 <td style="text-align:right;">
 1351
 </td>
@@ -3096,6 +3097,8 @@ Immune_OCRs; Immune_h3k27ac
 <tr>
 <td style="text-align:left;">
 rs73773374
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 ARRDC3
@@ -3109,6 +3112,9 @@ ARRDC3
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+BRCA_OCRs; Conserved_LindbladToh; BRCA_ac; Immune_OCRs; Immune_h3k27ac
+</td>
+<td style="text-align:left;">
 intron_variant; non_coding_transcript_variant
 </td>
 <td style="text-align:right;">
@@ -3117,11 +3123,6 @@ intron_variant; non_coding_transcript_variant
 <td style="text-align:right;">
 0.1794507
 </td>
-<td style="text-align:left;">
-BRCA_OCRs; Conserved_LindbladToh; BRCA_ac; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
-</td>
 <td style="text-align:right;">
 575
 </td>
@@ -3129,6 +3130,9 @@ BRCA_OCRs; Conserved_LindbladToh; BRCA_ac; Immune_OCRs; Immune_h3k27ac
 <tr>
 <td style="text-align:left;">
 rs1895062
+</td>
+<td style="text-align:left;">
+Breast cancer
 </td>
 <td style="text-align:left;">
 ASTN2 RP11-264C15.2
@@ -3142,6 +3146,9 @@ ASTN2 RP11-264C15.2
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+Immune_OCRs; Immune_h3k27ac
+</td>
+<td style="text-align:left;">
 non_coding_transcript_variant; intron_variant
 </td>
 <td style="text-align:right;">
@@ -3150,12 +3157,6 @@ non_coding_transcript_variant; intron_variant
 <td style="text-align:right;">
 0.1772247
 </td>
-<td style="text-align:left;">
-Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
-Breast cancer
-</td>
 <td style="text-align:right;">
 996
 </td>
@@ -3163,6 +3164,8 @@ Breast cancer
 <tr>
 <td style="text-align:left;">
 rs56234354
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 KRT18P41
@@ -3176,17 +3179,15 @@ KRT18P41
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+Immune_OCRs
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 -5.704365
 </td>
 <td style="text-align:right;">
 0.1762345
-</td>
-<td style="text-align:left;">
-Immune_OCRs
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 623
@@ -3195,6 +3196,8 @@ Immune_OCRs
 <tr>
 <td style="text-align:left;">
 rs17756000
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 RAD51B
@@ -3208,6 +3211,9 @@ RAD51B
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+Conserved_LindbladToh; Immune_OCRs; Immune_h3k27ac
+</td>
+<td style="text-align:left;">
 intron_variant; non_coding_transcript_variant
 </td>
 <td style="text-align:right;">
@@ -3216,11 +3222,6 @@ intron_variant; non_coding_transcript_variant
 <td style="text-align:right;">
 0.1726294
 </td>
-<td style="text-align:left;">
-Conserved_LindbladToh; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
-</td>
 <td style="text-align:right;">
 1355
 </td>
@@ -3228,6 +3229,8 @@ Conserved_LindbladToh; Immune_OCRs; Immune_h3k27ac
 <tr>
 <td style="text-align:left;">
 rs11743915
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 KRT18P41
@@ -3241,17 +3244,15 @@ KRT18P41
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+Immune_OCRs
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 -5.693148
 </td>
 <td style="text-align:right;">
 0.1662231
-</td>
-<td style="text-align:left;">
-Immune_OCRs
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 623
@@ -3260,6 +3261,8 @@ Immune_OCRs
 <tr>
 <td style="text-align:left;">
 rs754416
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 ZMIZ1
@@ -3273,6 +3276,9 @@ ZMIZ1
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
+</td>
+<td style="text-align:left;">
 intron_variant
 </td>
 <td style="text-align:right;">
@@ -3281,11 +3287,6 @@ intron_variant
 <td style="text-align:right;">
 0.1651447
 </td>
-<td style="text-align:left;">
-BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
-</td>
 <td style="text-align:right;">
 1060
 </td>
@@ -3293,6 +3294,8 @@ BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
 <tr>
 <td style="text-align:left;">
 rs9397436
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 CCDC170
@@ -3307,17 +3310,15 @@ ESR1
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+Cancer_Drivers; Conserved_LindbladToh; BRCA_ac
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 -9.390059
 </td>
 <td style="text-align:right;">
 0.1642837
-</td>
-<td style="text-align:left;">
-Cancer_Drivers; Conserved_LindbladToh; BRCA_ac
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 730
@@ -3326,6 +3327,8 @@ Cancer_Drivers; Conserved_LindbladToh; BRCA_ac
 <tr>
 <td style="text-align:left;">
 rs35244739
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 HIF1A HIF1A-AS2 RP11-618G20.1
@@ -3339,6 +3342,9 @@ HIF1A HIF1A-AS2 RP11-618G20.1
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+Immune_OCRs; Immune_h3k27ac
+</td>
+<td style="text-align:left;">
 intron_variant; non_coding_transcript_variant
 </td>
 <td style="text-align:right;">
@@ -3347,11 +3353,6 @@ intron_variant; non_coding_transcript_variant
 <td style="text-align:right;">
 0.1625727
 </td>
-<td style="text-align:left;">
-Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
-</td>
 <td style="text-align:right;">
 1351
 </td>
@@ -3359,6 +3360,8 @@ Immune_OCRs; Immune_h3k27ac
 <tr>
 <td style="text-align:left;">
 rs7921002
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 ZMIZ1
@@ -3372,6 +3375,9 @@ ZMIZ1
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
+</td>
+<td style="text-align:left;">
 intron_variant
 </td>
 <td style="text-align:right;">
@@ -3379,11 +3385,6 @@ intron_variant
 </td>
 <td style="text-align:right;">
 0.1625301
-</td>
-<td style="text-align:left;">
-BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 1061
@@ -3394,7 +3395,12 @@ BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
 rs7529522
 </td>
 <td style="text-align:left;">
+Breast cancer
+</td>
+<td style="text-align:left;">
 SNORA40
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -3412,11 +3418,6 @@ SNORA40
 <td style="text-align:right;">
 0.1605607
 </td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:left;">
-Breast cancer
-</td>
 <td style="text-align:right;">
 72
 </td>
@@ -3426,7 +3427,11 @@ Breast cancer
 rs75772194
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
 AC090453.1
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -3444,10 +3449,6 @@ AC090453.1
 <td style="text-align:right;">
 0.1602297
 </td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:left;">
-</td>
 <td style="text-align:right;">
 875
 </td>
@@ -3455,6 +3456,9 @@ AC090453.1
 <tr>
 <td style="text-align:left;">
 rs72801445
+</td>
+<td style="text-align:left;">
+Heel bone mineral density
 </td>
 <td style="text-align:left;">
 HSPA4
@@ -3469,6 +3473,9 @@ AFF4
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+Cancer_Drivers; BRCA_ac; Immune_OCRs; Immune_h3k27ac
+</td>
+<td style="text-align:left;">
 intron_variant
 </td>
 <td style="text-align:right;">
@@ -3477,12 +3484,6 @@ intron_variant
 <td style="text-align:right;">
 0.1578282
 </td>
-<td style="text-align:left;">
-Cancer_Drivers; BRCA_ac; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
-Heel bone mineral density
-</td>
 <td style="text-align:right;">
 601
 </td>
@@ -3490,6 +3491,8 @@ Heel bone mineral density
 <tr>
 <td style="text-align:left;">
 rs4784226
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 TOX3 CASC16
@@ -3503,17 +3506,15 @@ TOX3 CASC16
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+Immune_OCRs
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 -19.368932
 </td>
 <td style="text-align:right;">
 0.1475763
-</td>
-<td style="text-align:left;">
-Immune_OCRs
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 1457
@@ -3522,6 +3523,8 @@ Immune_OCRs
 <tr>
 <td style="text-align:left;">
 rs7484068
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 SLC25A22 PIDD RPLP2 SNORA52
@@ -3537,6 +3540,9 @@ AP006621.5 AP006621.1 AP006621.6 RPLP2
 AP006621.5 AP006621.1 AP006621.6
 </td>
 <td style="text-align:left;">
+BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
+</td>
+<td style="text-align:left;">
 non_coding_transcript_variant; intron_variant
 </td>
 <td style="text-align:right;">
@@ -3545,11 +3551,6 @@ non_coding_transcript_variant; intron_variant
 <td style="text-align:right;">
 0.1457235
 </td>
-<td style="text-align:left;">
-BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
-</td>
 <td style="text-align:right;">
 1096
 </td>
@@ -3557,6 +3558,8 @@ BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
 <tr>
 <td style="text-align:left;">
 rs75167266
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 ZMIZ1
@@ -3570,6 +3573,9 @@ ZMIZ1
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
+</td>
+<td style="text-align:left;">
 intron_variant
 </td>
 <td style="text-align:right;">
@@ -3578,11 +3584,6 @@ intron_variant
 <td style="text-align:right;">
 0.1412214
 </td>
-<td style="text-align:left;">
-BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
-</td>
 <td style="text-align:right;">
 1061
 </td>
@@ -3590,6 +3591,8 @@ BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
 <tr>
 <td style="text-align:left;">
 rs7153817
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 HIF1A HIF1A-AS2 RP11-618G20.1
@@ -3603,6 +3606,9 @@ HIF1A HIF1A-AS2 RP11-618G20.1
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+Immune_OCRs; Immune_h3k27ac
+</td>
+<td style="text-align:left;">
 intron_variant; non_coding_transcript_variant
 </td>
 <td style="text-align:right;">
@@ -3610,11 +3616,6 @@ intron_variant; non_coding_transcript_variant
 </td>
 <td style="text-align:right;">
 0.1405210
-</td>
-<td style="text-align:left;">
-Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 1351
@@ -3625,9 +3626,6 @@ Immune_OCRs; Immune_h3k27ac
 rs55678871
 </td>
 <td style="text-align:left;">
-AIRE PFKL
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 AIRE PFKL
@@ -3635,6 +3633,14 @@ AIRE PFKL
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+AIRE PFKL
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
 </td>
 <td style="text-align:left;">
 intron_variant; NMD_transcript_variant; non_coding_transcript_variant
@@ -3645,11 +3651,6 @@ intron_variant; NMD_transcript_variant; non_coding_transcript_variant
 <td style="text-align:right;">
 0.1401690
 </td>
-<td style="text-align:left;">
-BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
-</td>
 <td style="text-align:right;">
 1677
 </td>
@@ -3657,6 +3658,8 @@ BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
 <tr>
 <td style="text-align:left;">
 rs1051545
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 NEK10 SLC4A7
@@ -3670,6 +3673,9 @@ NEK10 SLC4A7
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+Conserved_LindbladToh
+</td>
+<td style="text-align:left;">
 non_coding_transcript_variant; intron_variant; 3_prime_UTR_variant
 </td>
 <td style="text-align:right;">
@@ -3678,11 +3684,6 @@ non_coding_transcript_variant; intron_variant; 3_prime_UTR_variant
 <td style="text-align:right;">
 0.1381836
 </td>
-<td style="text-align:left;">
-Conserved_LindbladToh
-</td>
-<td style="text-align:left;">
-</td>
 <td style="text-align:right;">
 297
 </td>
@@ -3690,6 +3691,8 @@ Conserved_LindbladToh
 <tr>
 <td style="text-align:left;">
 rs793499
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 CMSS1 FILIP1L
@@ -3703,6 +3706,9 @@ CMSS1 FILIP1L
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+BRCA_OCRs; Conserved_LindbladToh; BRCA_ac; Immune_OCRs; Immune_h3k27ac
+</td>
+<td style="text-align:left;">
 non_coding_transcript_variant; intron_variant; NMD_transcript_variant
 </td>
 <td style="text-align:right;">
@@ -3711,11 +3717,6 @@ non_coding_transcript_variant; intron_variant; NMD_transcript_variant
 <td style="text-align:right;">
 0.1381085
 </td>
-<td style="text-align:left;">
-BRCA_OCRs; Conserved_LindbladToh; BRCA_ac; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
-</td>
 <td style="text-align:right;">
 340
 </td>
@@ -3723,6 +3724,8 @@ BRCA_OCRs; Conserved_LindbladToh; BRCA_ac; Immune_OCRs; Immune_h3k27ac
 <tr>
 <td style="text-align:left;">
 rs7484123
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 SLC25A22 PIDD RPLP2 SNORA52
@@ -3738,6 +3741,9 @@ AP006621.5 AP006621.1 AP006621.6 RPLP2
 AP006621.5 AP006621.1 AP006621.6
 </td>
 <td style="text-align:left;">
+BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
+</td>
+<td style="text-align:left;">
 non_coding_transcript_variant; intron_variant
 </td>
 <td style="text-align:right;">
@@ -3746,11 +3752,6 @@ non_coding_transcript_variant; intron_variant
 <td style="text-align:right;">
 0.1353869
 </td>
-<td style="text-align:left;">
-BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
-</td>
 <td style="text-align:right;">
 1096
 </td>
@@ -3758,6 +3759,9 @@ BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
 <tr>
 <td style="text-align:left;">
 rs11879798
+</td>
+<td style="text-align:left;">
+Granulocyte percentage of myeloid white cells; Monocyte percentage of white cells
 </td>
 <td style="text-align:left;">
 KCNN4
@@ -3774,6 +3778,9 @@ ZNF404
 KCNN4
 </td>
 <td style="text-align:left;">
+BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
+</td>
+<td style="text-align:left;">
 intron_variant; NMD_transcript_variant
 </td>
 <td style="text-align:right;">
@@ -3782,12 +3789,6 @@ intron_variant; NMD_transcript_variant
 <td style="text-align:right;">
 0.1335340
 </td>
-<td style="text-align:left;">
-BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
-Granulocyte percentage of myeloid white cells; Monocyte percentage of white cells
-</td>
 <td style="text-align:right;">
 1608
 </td>
@@ -3795,6 +3796,8 @@ Granulocyte percentage of myeloid white cells; Monocyte percentage of white cell
 <tr>
 <td style="text-align:left;">
 rs11246319
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 PIDD RPLP2 SNORA52 PNPLA2
@@ -3810,17 +3813,15 @@ AP006621.5 AP006621.1 AP006621.6 RPLP2
 AP006621.5 AP006621.1 AP006621.6
 </td>
 <td style="text-align:left;">
+BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 -4.703540
 </td>
 <td style="text-align:right;">
 0.1330701
-</td>
-<td style="text-align:left;">
-BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 1096
@@ -3831,9 +3832,6 @@ BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
 rs55730776
 </td>
 <td style="text-align:left;">
-AIRE PFKL
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 AIRE PFKL
@@ -3841,6 +3839,14 @@ AIRE PFKL
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+AIRE PFKL
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
 </td>
 <td style="text-align:left;">
 intron_variant; NMD_transcript_variant; non_coding_transcript_variant
@@ -3850,11 +3856,6 @@ intron_variant; NMD_transcript_variant; non_coding_transcript_variant
 </td>
 <td style="text-align:right;">
 0.1312477
-</td>
-<td style="text-align:left;">
-BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 1677
@@ -3865,9 +3866,6 @@ BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
 rs34642010
 </td>
 <td style="text-align:left;">
-AIRE PFKL
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 AIRE PFKL
@@ -3875,6 +3873,14 @@ AIRE PFKL
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+AIRE PFKL
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
 </td>
 <td style="text-align:left;">
 intron_variant; NMD_transcript_variant; non_coding_transcript_variant
@@ -3884,11 +3890,6 @@ intron_variant; NMD_transcript_variant; non_coding_transcript_variant
 </td>
 <td style="text-align:right;">
 0.1312477
-</td>
-<td style="text-align:left;">
-BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 1677
@@ -3899,9 +3900,6 @@ BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
 rs55828838
 </td>
 <td style="text-align:left;">
-AIRE PFKL
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 AIRE PFKL
@@ -3909,6 +3907,14 @@ AIRE PFKL
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+AIRE PFKL
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
 </td>
 <td style="text-align:left;">
 intron_variant; NMD_transcript_variant; non_coding_transcript_variant
@@ -3919,11 +3925,6 @@ intron_variant; NMD_transcript_variant; non_coding_transcript_variant
 <td style="text-align:right;">
 0.1312477
 </td>
-<td style="text-align:left;">
-BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
-</td>
 <td style="text-align:right;">
 1677
 </td>
@@ -3933,16 +3934,21 @@ BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
 rs57037798
 </td>
 <td style="text-align:left;">
-TGFBR2
 </td>
 <td style="text-align:left;">
 TGFBR2
 </td>
 <td style="text-align:left;">
+TGFBR2
 </td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+Cancer_Drivers; Immune_OCRs; Immune_h3k27ac
 </td>
 <td style="text-align:left;">
 intron_variant; non_coding_transcript_variant
@@ -3953,11 +3959,6 @@ intron_variant; non_coding_transcript_variant
 <td style="text-align:right;">
 0.1281509
 </td>
-<td style="text-align:left;">
-Cancer_Drivers; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
-</td>
 <td style="text-align:right;">
 299
 </td>
@@ -3965,6 +3966,8 @@ Cancer_Drivers; Immune_OCRs; Immune_h3k27ac
 <tr>
 <td style="text-align:left;">
 rs5001107
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 RP11-285B24.1
@@ -3978,6 +3981,9 @@ RP11-285B24.1
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
+</td>
+<td style="text-align:left;">
 non_coding_transcript_variant; intron_variant
 </td>
 <td style="text-align:right;">
@@ -3986,11 +3992,6 @@ non_coding_transcript_variant; intron_variant
 <td style="text-align:right;">
 0.1267305
 </td>
-<td style="text-align:left;">
-BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
-</td>
 <td style="text-align:right;">
 317
 </td>
@@ -3998,6 +3999,8 @@ BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
 <tr>
 <td style="text-align:left;">
 rs7730930
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 HSPA4
@@ -4012,17 +4015,15 @@ AFF4
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+Cancer_Drivers; BRCA_ac; Immune_OCRs; Immune_h3k27ac
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 5.346008
 </td>
 <td style="text-align:right;">
 0.1263327
-</td>
-<td style="text-align:left;">
-Cancer_Drivers; BRCA_ac; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 601
@@ -4031,6 +4032,8 @@ Cancer_Drivers; BRCA_ac; Immune_OCRs; Immune_h3k27ac
 <tr>
 <td style="text-align:left;">
 rs963513
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 RP11-285B24.1
@@ -4044,6 +4047,9 @@ RP11-285B24.1
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
+</td>
+<td style="text-align:left;">
 non_coding_transcript_variant; intron_variant
 </td>
 <td style="text-align:right;">
@@ -4051,11 +4057,6 @@ non_coding_transcript_variant; intron_variant
 </td>
 <td style="text-align:right;">
 0.1261122
-</td>
-<td style="text-align:left;">
-BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 317
@@ -4077,16 +4078,16 @@ rs17145088
 </td>
 <td style="text-align:left;">
 </td>
+<td style="text-align:left;">
+BRCA_OCRs; BRCA_ac
+</td>
+<td style="text-align:left;">
+</td>
 <td style="text-align:right;">
 -5.940102
 </td>
 <td style="text-align:right;">
 0.1202989
-</td>
-<td style="text-align:left;">
-BRCA_OCRs; BRCA_ac
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 1019
@@ -4097,16 +4098,21 @@ BRCA_OCRs; BRCA_ac
 rs12375
 </td>
 <td style="text-align:left;">
-PEX14
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 PEX14
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+PEX14
+</td>
+<td style="text-align:left;">
+Conserved_LindbladToh
 </td>
 <td style="text-align:left;">
 non_coding_transcript_exon_variant; synonymous_variant
@@ -4117,11 +4123,6 @@ non_coding_transcript_exon_variant; synonymous_variant
 <td style="text-align:right;">
 0.1202071
 </td>
-<td style="text-align:left;">
-Conserved_LindbladToh
-</td>
-<td style="text-align:left;">
-</td>
 <td style="text-align:right;">
 7
 </td>
@@ -4129,6 +4130,8 @@ Conserved_LindbladToh
 <tr>
 <td style="text-align:left;">
 rs4980030
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 ZMIZ1
@@ -4142,6 +4145,9 @@ ZMIZ1
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
+</td>
+<td style="text-align:left;">
 intron_variant
 </td>
 <td style="text-align:right;">
@@ -4149,11 +4155,6 @@ intron_variant
 </td>
 <td style="text-align:right;">
 0.1193350
-</td>
-<td style="text-align:left;">
-BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 1061
@@ -4164,7 +4165,12 @@ BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
 rs11135046
 </td>
 <td style="text-align:left;">
+Breast cancer
+</td>
+<td style="text-align:left;">
 EBF1
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -4183,11 +4189,6 @@ non_coding_transcript_variant; intron_variant
 <td style="text-align:right;">
 0.1189231
 </td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:left;">
-Breast cancer
-</td>
 <td style="text-align:right;">
 614
 </td>
@@ -4195,6 +4196,8 @@ Breast cancer
 <tr>
 <td style="text-align:left;">
 rs28572537
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 SSBP4 ISYNA1 CTD-3137H5.1 ELL AC010335.1
@@ -4209,17 +4212,15 @@ SSBP4 ISYNA1 CTD-3137H5.1 ELL AC010335.1
 LRRC25 ELL
 </td>
 <td style="text-align:left;">
+BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 7.392259
 </td>
 <td style="text-align:right;">
 0.1183333
-</td>
-<td style="text-align:left;">
-BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 1593
@@ -4228,6 +4229,9 @@ BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
 <tr>
 <td style="text-align:left;">
 rs10923398
+</td>
+<td style="text-align:left;">
+Red cell distribution width
 </td>
 <td style="text-align:left;">
 RP11-134N8.2
@@ -4241,18 +4245,15 @@ RP11-134N8.2
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+Immune_OCRs
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 -5.444637
 </td>
 <td style="text-align:right;">
 0.1180020
-</td>
-<td style="text-align:left;">
-Immune_OCRs
-</td>
-<td style="text-align:left;">
-Red cell distribution width
 </td>
 <td style="text-align:right;">
 72
@@ -4263,16 +4264,21 @@ Red cell distribution width
 rs72658081
 </td>
 <td style="text-align:left;">
-HNF4G
 </td>
 <td style="text-align:left;">
 HNF4G
 </td>
 <td style="text-align:left;">
+HNF4G
 </td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+Cancer_Drivers
 </td>
 <td style="text-align:left;">
 non_coding_transcript_variant; intron_variant
@@ -4282,11 +4288,6 @@ non_coding_transcript_variant; intron_variant
 </td>
 <td style="text-align:right;">
 0.1159283
-</td>
-<td style="text-align:left;">
-Cancer_Drivers
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 897
@@ -4308,16 +4309,16 @@ rs568110
 </td>
 <td style="text-align:left;">
 </td>
+<td style="text-align:left;">
+Immune_OCRs
+</td>
+<td style="text-align:left;">
+</td>
 <td style="text-align:right;">
 -5.562613
 </td>
 <td style="text-align:right;">
 0.1136017
-</td>
-<td style="text-align:left;">
-Immune_OCRs
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 1080
@@ -4339,16 +4340,16 @@ rs531790
 </td>
 <td style="text-align:left;">
 </td>
+<td style="text-align:left;">
+BRCA_OCRs; Conserved_LindbladToh; Immune_OCRs
+</td>
+<td style="text-align:left;">
+</td>
 <td style="text-align:right;">
 -4.890636
 </td>
 <td style="text-align:right;">
 0.1133382
-</td>
-<td style="text-align:left;">
-BRCA_OCRs; Conserved_LindbladToh; Immune_OCRs
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 1080
@@ -4370,16 +4371,16 @@ rs55976031
 </td>
 <td style="text-align:left;">
 </td>
+<td style="text-align:left;">
+BRCA_OCRs; BRCA_ac
+</td>
+<td style="text-align:left;">
+</td>
 <td style="text-align:right;">
 -5.940146
 </td>
 <td style="text-align:right;">
 0.1128537
-</td>
-<td style="text-align:left;">
-BRCA_OCRs; BRCA_ac
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 1019
@@ -4388,6 +4389,8 @@ BRCA_OCRs; BRCA_ac
 <tr>
 <td style="text-align:left;">
 rs74385409
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 ZMIZ1
@@ -4401,6 +4404,9 @@ ZMIZ1
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
+</td>
+<td style="text-align:left;">
 intron_variant
 </td>
 <td style="text-align:right;">
@@ -4408,11 +4414,6 @@ intron_variant
 </td>
 <td style="text-align:right;">
 0.1127485
-</td>
-<td style="text-align:left;">
-BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 1061
@@ -4423,16 +4424,21 @@ BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
 rs58965035
 </td>
 <td style="text-align:left;">
-TGFBR2
 </td>
 <td style="text-align:left;">
 TGFBR2
 </td>
 <td style="text-align:left;">
+TGFBR2
 </td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+Cancer_Drivers; Immune_OCRs; Immune_h3k27ac
 </td>
 <td style="text-align:left;">
 intron_variant; non_coding_transcript_variant
@@ -4443,11 +4449,6 @@ intron_variant; non_coding_transcript_variant
 <td style="text-align:right;">
 0.1125521
 </td>
-<td style="text-align:left;">
-Cancer_Drivers; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
-</td>
 <td style="text-align:right;">
 299
 </td>
@@ -4455,6 +4456,9 @@ Cancer_Drivers; Immune_OCRs; Immune_h3k27ac
 <tr>
 <td style="text-align:left;">
 rs31864
+</td>
+<td style="text-align:left;">
+Hypertension; Pulse pressure
 </td>
 <td style="text-align:left;">
 EBF1
@@ -4468,6 +4472,9 @@ EBF1
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+Immune_OCRs
+</td>
+<td style="text-align:left;">
 non_coding_transcript_variant; intron_variant
 </td>
 <td style="text-align:right;">
@@ -4475,12 +4482,6 @@ non_coding_transcript_variant; intron_variant
 </td>
 <td style="text-align:right;">
 0.1122465
-</td>
-<td style="text-align:left;">
-Immune_OCRs
-</td>
-<td style="text-align:left;">
-Hypertension; Pulse pressure
 </td>
 <td style="text-align:right;">
 614
@@ -4491,7 +4492,11 @@ Hypertension; Pulse pressure
 rs7626742
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
 NEK10
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -4509,10 +4514,6 @@ intron_variant; non_coding_transcript_variant
 </td>
 <td style="text-align:right;">
 0.1119447
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 297
@@ -4534,16 +4535,16 @@ rs2796392
 </td>
 <td style="text-align:left;">
 </td>
+<td style="text-align:left;">
+Conserved_LindbladToh
+</td>
+<td style="text-align:left;">
+</td>
 <td style="text-align:right;">
 -5.117273
 </td>
 <td style="text-align:right;">
 0.1116293
-</td>
-<td style="text-align:left;">
-Conserved_LindbladToh
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 105
@@ -4552,6 +4553,9 @@ Conserved_LindbladToh
 <tr>
 <td style="text-align:left;">
 rs4784227
+</td>
+<td style="text-align:left;">
+Breast cancer; Breast cancer (estrogen-receptor negative); Parkinson’s disease
 </td>
 <td style="text-align:left;">
 CASC16
@@ -4565,6 +4569,9 @@ CASC16
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+BRCA_OCRs
+</td>
+<td style="text-align:left;">
 non_coding_transcript_variant; intron_variant
 </td>
 <td style="text-align:right;">
@@ -4572,12 +4579,6 @@ non_coding_transcript_variant; intron_variant
 </td>
 <td style="text-align:right;">
 0.1102150
-</td>
-<td style="text-align:left;">
-BRCA_OCRs
-</td>
-<td style="text-align:left;">
-Breast cancer; Breast cancer (estrogen-receptor negative); Parkinson’s disease
 </td>
 <td style="text-align:right;">
 1457
@@ -4588,7 +4589,11 @@ Breast cancer; Breast cancer (estrogen-receptor negative); Parkinson’s disease
 rs6001799
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
 TNRC6B
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -4607,10 +4612,6 @@ intron_variant
 <td style="text-align:right;">
 0.1086367
 </td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:left;">
-</td>
 <td style="text-align:right;">
 1695
 </td>
@@ -4618,6 +4619,8 @@ intron_variant
 <tr>
 <td style="text-align:left;">
 rs76836760
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 HSPA4
@@ -4633,6 +4636,9 @@ AFF4
 HSPA4
 </td>
 <td style="text-align:left;">
+Cancer_Drivers; Conserved_LindbladToh; BRCA_ac; Immune_OCRs; Immune_h3k27ac
+</td>
+<td style="text-align:left;">
 intron_variant
 </td>
 <td style="text-align:right;">
@@ -4640,11 +4646,6 @@ intron_variant
 </td>
 <td style="text-align:right;">
 0.1058112
-</td>
-<td style="text-align:left;">
-Cancer_Drivers; Conserved_LindbladToh; BRCA_ac; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 601
@@ -4655,16 +4656,21 @@ Cancer_Drivers; Conserved_LindbladToh; BRCA_ac; Immune_OCRs; Immune_h3k27ac
 rs2480777
 </td>
 <td style="text-align:left;">
-PEX14
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 PEX14
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+PEX14
+</td>
+<td style="text-align:left;">
+Conserved_LindbladToh
 </td>
 <td style="text-align:left;">
 intron_variant
@@ -4675,11 +4681,6 @@ intron_variant
 <td style="text-align:right;">
 0.1051364
 </td>
-<td style="text-align:left;">
-Conserved_LindbladToh
-</td>
-<td style="text-align:left;">
-</td>
 <td style="text-align:right;">
 7
 </td>
@@ -4687,6 +4688,8 @@ Conserved_LindbladToh
 <tr>
 <td style="text-align:left;">
 rs1250000
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 ZMIZ1
@@ -4700,6 +4703,9 @@ ZMIZ1
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
+</td>
+<td style="text-align:left;">
 intron_variant
 </td>
 <td style="text-align:right;">
@@ -4707,11 +4713,6 @@ intron_variant
 </td>
 <td style="text-align:right;">
 0.1049214
-</td>
-<td style="text-align:left;">
-BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 1060
@@ -4733,16 +4734,16 @@ rs72784411
 </td>
 <td style="text-align:left;">
 </td>
+<td style="text-align:left;">
+Conserved_LindbladToh; BRCA_ac
+</td>
+<td style="text-align:left;">
+</td>
 <td style="text-align:right;">
 -5.939416
 </td>
 <td style="text-align:right;">
 0.1038421
-</td>
-<td style="text-align:left;">
-Conserved_LindbladToh; BRCA_ac
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 1019
@@ -4763,6 +4764,11 @@ rs67529903
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+Immune_OCRs; Immune_h3k27ac
+</td>
+<td style="text-align:left;">
 intron_variant
 </td>
 <td style="text-align:right;">
@@ -4771,11 +4777,6 @@ intron_variant
 <td style="text-align:right;">
 0.1031707
 </td>
-<td style="text-align:left;">
-Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
-</td>
 <td style="text-align:right;">
 310
 </td>
@@ -4783,6 +4784,8 @@ Immune_OCRs; Immune_h3k27ac
 <tr>
 <td style="text-align:left;">
 rs271621
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 ELL
@@ -4797,6 +4800,9 @@ ELL
 LRRC25 ELL
 </td>
 <td style="text-align:left;">
+BRCA_OCRs; BRCA_ac; Immune_OCRs; Immune_h3k27ac
+</td>
+<td style="text-align:left;">
 intron_variant; NMD_transcript_variant; non_coding_transcript_variant
 </td>
 <td style="text-align:right;">
@@ -4804,11 +4810,6 @@ intron_variant; NMD_transcript_variant; non_coding_transcript_variant
 </td>
 <td style="text-align:right;">
 0.1023920
-</td>
-<td style="text-align:left;">
-BRCA_OCRs; BRCA_ac; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 1593
@@ -4830,16 +4831,16 @@ rs648354
 </td>
 <td style="text-align:left;">
 </td>
+<td style="text-align:left;">
+Immune_OCRs
+</td>
+<td style="text-align:left;">
+</td>
 <td style="text-align:right;">
 9.756410
 </td>
 <td style="text-align:right;">
 0.1021301
-</td>
-<td style="text-align:left;">
-Immune_OCRs
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 991
@@ -4850,15 +4851,19 @@ Immune_OCRs
 rs244294
 </td>
 <td style="text-align:left;">
-STXBP4
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 STXBP4
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
 STXBP4
+</td>
+<td style="text-align:left;">
+STXBP4
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -4871,10 +4876,6 @@ intron_variant
 <td style="text-align:right;">
 0.1020107
 </td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:left;">
-</td>
 <td style="text-align:right;">
 1515
 </td>
@@ -4882,6 +4883,8 @@ intron_variant
 <tr>
 <td style="text-align:left;">
 rs6465421
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 SGCE
@@ -4895,6 +4898,9 @@ SGCE
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+Conserved_LindbladToh
+</td>
+<td style="text-align:left;">
 non_coding_transcript_variant; intron_variant; NMD_transcript_variant; non_coding_transcript_exon_variant
 </td>
 <td style="text-align:right;">
@@ -4902,11 +4908,6 @@ non_coding_transcript_variant; intron_variant; NMD_transcript_variant; non_codin
 </td>
 <td style="text-align:right;">
 0.1019021
-</td>
-<td style="text-align:left;">
-Conserved_LindbladToh
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 801
@@ -4917,9 +4918,6 @@ Conserved_LindbladToh
 rs5743551
 </td>
 <td style="text-align:left;">
-TLR1
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 TLR1
@@ -4927,6 +4925,14 @@ TLR1
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+TLR1
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
 </td>
 <td style="text-align:left;">
 intron_variant
@@ -4937,11 +4943,6 @@ intron_variant
 <td style="text-align:right;">
 0.1014329
 </td>
-<td style="text-align:left;">
-BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
-</td>
 <td style="text-align:right;">
 430
 </td>
@@ -4951,16 +4952,21 @@ BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
 rs58601830
 </td>
 <td style="text-align:left;">
-TGFBR2
 </td>
 <td style="text-align:left;">
 TGFBR2
 </td>
 <td style="text-align:left;">
+TGFBR2
 </td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+Cancer_Drivers; Immune_OCRs; Immune_h3k27ac
 </td>
 <td style="text-align:left;">
 intron_variant; non_coding_transcript_variant
@@ -4971,11 +4977,6 @@ intron_variant; non_coding_transcript_variant
 <td style="text-align:right;">
 0.1013003
 </td>
-<td style="text-align:left;">
-Cancer_Drivers; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
-</td>
 <td style="text-align:right;">
 299
 </td>
@@ -4983,6 +4984,8 @@ Cancer_Drivers; Immune_OCRs; Immune_h3k27ac
 <tr>
 <td style="text-align:left;">
 rs4980031
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 ZMIZ1
@@ -4996,6 +4999,9 @@ ZMIZ1
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+Conserved_LindbladToh; Immune_OCRs; Immune_h3k27ac
+</td>
+<td style="text-align:left;">
 intron_variant
 </td>
 <td style="text-align:right;">
@@ -5003,11 +5009,6 @@ intron_variant
 </td>
 <td style="text-align:right;">
 0.1008915
-</td>
-<td style="text-align:left;">
-Conserved_LindbladToh; Immune_OCRs; Immune_h3k27ac
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 1061
@@ -5018,12 +5019,17 @@ Conserved_LindbladToh; Immune_OCRs; Immune_h3k27ac
 rs72755295
 </td>
 <td style="text-align:left;">
+Breast cancer
+</td>
+<td style="text-align:left;">
 EXO1
 </td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 EXO1
+</td>
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -5037,11 +5043,6 @@ intron_variant
 </td>
 <td style="text-align:right;">
 0.1005685
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:left;">
-Breast cancer
 </td>
 <td style="text-align:right;">
 129
@@ -5063,16 +5064,16 @@ rs525142
 </td>
 <td style="text-align:left;">
 </td>
+<td style="text-align:left;">
+Immune_OCRs
+</td>
+<td style="text-align:left;">
+</td>
 <td style="text-align:right;">
 9.754274
 </td>
 <td style="text-align:right;">
 0.1002795
-</td>
-<td style="text-align:left;">
-Immune_OCRs
-</td>
-<td style="text-align:left;">
 </td>
 <td style="text-align:right;">
 991
