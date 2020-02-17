@@ -270,8 +270,14 @@ add.gwas_catalog <- function(sumstats, gwas){
   sumstats <- left_join(sumstats, annot.sumstats, by='snp')
   return(sumstats)
 }
+  
 
-
+# BRCA locus zoom link
+add.locuszoom.link <- function(sumstats){
+  links <- paste0("https://my.locuszoom.org/gwas/844282/region/?chrom=",sumstats$chr,"&start=",sumstats$pos-1000,"&end=",sumstats$pos+1000)
+  sumstats$locuszoom <- links
+  return(sumstats)
+}
 
 
 # Hi-C related functions

@@ -442,9 +442,9 @@ annot.df$merged &lt;- apply(annot.df, MARGIN = 1, FUN = function(x){return(paste
 top.snps &lt;- inner_join(top.snps, annot.df[ ,c(&quot;snp&quot;,&quot;merged&quot;)], by = &quot;snp&quot;)</code></pre>
 <p>Add gene innformation (nearby gene, drivers, immune genes)</p>
 <p>Immune genes were obtained from GO db (using immune response GO term)</p>
-<pre class="r"><code># add regular genes within 10kb
+<pre class="r"><code># which gene is the SNP in
 genes &lt;- suppressMessages(vroom::vroom(&#39;~/GERMLINE/refGenome/GENES_COORDs_b37.txt&#39;, col_names = T))
-top.snps &lt;- add.nearby.gene(top.snps, genes, dist=10000, gene_type=&#39;nearby_gene&#39;)
+top.snps &lt;- add.nearby.gene(top.snps, genes, dist=0, gene_type=&#39;inside_gene&#39;)
 
 # add drivers within 100kb (theres less of them)
 drivers &lt;- readLines(&#39;~/GERMLINE/ANNOTATIONS/cancer_driver_genes/AllDrivers_FDR_0.10.txt&#39;)
@@ -452,7 +452,7 @@ top.snps &lt;- add.nearby.gene(top.snps, genes[genes$gene %in% drivers, ], dist 
 
 # immune genes (within 10kb)
 immune.genes &lt;- suppressMessages(vroom::vroom(&#39;~/GERMLINE/refGenome/immune_genes_cords.txt&#39;, col_names = T))
-top.snps &lt;- add.nearby.gene(top.snps, immune.genes, dist = 10000, gene_type=&#39;nearby_immune&#39;)</code></pre>
+top.snps &lt;- add.nearby.gene(top.snps, immune.genes, dist = 100000, gene_type=&#39;nearby_immune&#39;)</code></pre>
 <p>Add eQTL information</p>
 <pre class="r"><code>gtex &lt;- suppressMessages(vroom::vroom(&#39;~/GERMLINE/GTEx_Analysis_v7_eQTL/Breast_Mammary_var_genes.txt.gz&#39;, col_names = T, delim = &#39;\t&#39;))
 top.snps &lt;- add.gtex.annotation(top.snps, gtex, tissue_type = &#39;breast_gtex_eGenes&#39;)
@@ -464,14 +464,20 @@ top.snps &lt;- add.gtex.annotation(top.snps, gtex, tissue_type = &#39;whole_bloo
 <p>Add GWAS catalog annotation</p>
 <pre class="r"><code>gwas &lt;- suppressMessages(vroom::vroom(&#39;../../GWAS_catalog/gwas_catalog_v1.0-associations_e98_r2020-02-08.tsv&#39;,col_names = T))
 top.snps &lt;- add.gwas_catalog(top.snps, gwas)</code></pre>
+<p>Add locus zoom link</p>
+<pre class="r"><code>top.snps &lt;- add.locuszoom.link(top.snps)</code></pre>
 <div id="annotated-table" class="section level4">
 <h4>Annotated Table</h4>
 <pre class="r"><code>top.snps &lt;- top.snps %&gt;% replace(. == &#39;NA&#39; | is.na(.), &#39;&#39;)
 
-top.snps.kable &lt;- top.snps[ , c(&#39;snp&#39;,&#39;gwas_catalog&#39;,&#39;nearby_gene&#39;,&#39;nearby_driver&#39;,&#39;nearby_immune&#39;,&#39;breast_gtex_eGenes&#39;,&#39;whole_blood_gtex_eGenes&#39;,&#39;merged&#39;,&#39;consequence&#39;,&#39;zscore&#39;,&#39;susie_pip&#39;,&#39;locus&#39;)]
-colnames(top.snps.kable) &lt;- c(&#39;SNP&#39;,&#39;GWAS Catalog&#39;,&#39;Nearby Genes (10kb)&#39;,&#39;Nearby Drivers (100kb)&#39;,&#39;Nearby Immune Gene (10kb)&#39;,&#39;Breast eGenes&#39;,&#39;Whole-Blood eGenes&#39;,&#39;Annotation&#39;,&#39;Consequence&#39;,&#39;ZScore&#39;,&#39;PIP&#39;,&#39;Locus&#39;)
+top.snps.kable &lt;- top.snps[ , c(&#39;snp&#39;,&#39;gwas_catalog&#39;,&#39;inside_gene&#39;,&#39;nearby_driver&#39;,&#39;nearby_immune&#39;,&#39;breast_gtex_eGenes&#39;,&#39;whole_blood_gtex_eGenes&#39;,&#39;merged&#39;,&#39;consequence&#39;,&#39;zscore&#39;,&#39;susie_pip&#39;,&#39;locus&#39;,&#39;locuszoom&#39;)]
+colnames(top.snps.kable) &lt;- c(&#39;SNP&#39;,&#39;GWAS Catalog&#39;,&#39;Gene Inside&#39;,&#39;Nearby Drivers (100kb)&#39;,&#39;Nearby Immune Gene (100kb)&#39;,&#39;Breast eGenes&#39;,&#39;Whole-Blood eGenes&#39;,&#39;Annotation&#39;,&#39;Consequence&#39;,&#39;ZScore&#39;,&#39;PIP&#39;,&#39;Locus&#39;,&#39;locuszoom&#39;)
 top.snps.kable &lt;- top.snps.kable[order(abs(top.snps.kable$PIP), decreasing = T), ]
-kable(top.snps.kable) %&gt;% 
+
+top.snps.kable %&gt;%
+  mutate(LocusZoom = cell_spec(&#39;Link&#39;, &quot;html&quot;, link = locuszoom)) %&gt;%
+  dplyr::select(-locuszoom) %&gt;%
+  kable(&quot;html&quot;, escape = FALSE) %&gt;%
   kable_styling(bootstrap_options = c(&quot;striped&quot;, &quot;hover&quot;, &quot;condensed&quot;)) %&gt;% 
   scroll_box(width = &quot;100%&quot;, height = &quot;600px&quot;)</code></pre>
 <div style="border: 1px solid #ddd; padding: 0px; overflow-y: scroll; height:600px; overflow-x: scroll; width:100%; ">
@@ -485,13 +491,13 @@ SNP
 GWAS Catalog
 </th>
 <th style="text-align:left;position: sticky; top:0; background-color: #FFFFFF;">
-Nearby Genes (10kb)
+Gene Inside
 </th>
 <th style="text-align:left;position: sticky; top:0; background-color: #FFFFFF;">
 Nearby Drivers (100kb)
 </th>
 <th style="text-align:left;position: sticky; top:0; background-color: #FFFFFF;">
-Nearby Immune Gene (10kb)
+Nearby Immune Gene (100kb)
 </th>
 <th style="text-align:left;position: sticky; top:0; background-color: #FFFFFF;">
 Breast eGenes
@@ -513,6 +519,9 @@ PIP
 </th>
 <th style="text-align:right;position: sticky; top:0; background-color: #FFFFFF;">
 Locus
+</th>
+<th style="text-align:left;position: sticky; top:0; background-color: #FFFFFF;">
+LocusZoom
 </th>
 </tr>
 </thead>
@@ -548,6 +557,9 @@ BRCA_OCRs; BRCA_ac; Immune_OCRs; Immune_h3k27ac
 <td style="text-align:right;">
 1133
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=11&amp;start=69330418&amp;end=69332418" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -557,7 +569,6 @@ rs10941679
 Breast cancer
 </td>
 <td style="text-align:left;">
-RP11-503D12.1 RN7SL383P
 </td>
 <td style="text-align:left;">
 </td>
@@ -580,6 +591,9 @@ RP11-503D12.1 RN7SL383P
 <td style="text-align:right;">
 550
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=5&amp;start=44705498&amp;end=44707498" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -589,7 +603,7 @@ rs35383942
 Breast cancer; Male-pattern baldness
 </td>
 <td style="text-align:left;">
-RP11-134G8.8 PHLDA3
+PHLDA3
 </td>
 <td style="text-align:left;">
 PHLDA3
@@ -614,6 +628,9 @@ missense_variant
 </td>
 <td style="text-align:right;">
 103
+</td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=1&amp;start=201436832&amp;end=201438832" style="     ">Link</a>
 </td>
 </tr>
 <tr>
@@ -649,6 +666,9 @@ intron_variant; NMD_transcript_variant; non_coding_transcript_variant
 <td style="text-align:right;">
 1086
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=10&amp;start=123349523&amp;end=123351523" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -658,7 +678,6 @@ rs11977670
 Breast cancer
 </td>
 <td style="text-align:left;">
-RNU1-58P
 </td>
 <td style="text-align:left;">
 </td>
@@ -681,6 +700,9 @@ BRCA_OCRs; BRCA_ac; Immune_OCRs; Immune_h3k27ac
 </td>
 <td style="text-align:right;">
 829
+</td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=7&amp;start=139941304&amp;end=139943304" style="     ">Link</a>
 </td>
 </tr>
 <tr>
@@ -715,6 +737,9 @@ intron_variant
 <td style="text-align:right;">
 729
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=6&amp;start=151815054&amp;end=151817054" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -724,7 +749,7 @@ rs62235635
 Breast cancer
 </td>
 <td style="text-align:left;">
-PITPNB TTC28-AS1 MIR3199-2
+PITPNB
 </td>
 <td style="text-align:left;">
 </td>
@@ -748,6 +773,9 @@ intron_variant; non_coding_transcript_variant
 </td>
 <td style="text-align:right;">
 1688
+</td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=22&amp;start=28313612&amp;end=28315612" style="     ">Link</a>
 </td>
 </tr>
 <tr>
@@ -782,6 +810,9 @@ intron_variant
 <td style="text-align:right;">
 1554
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=18&amp;start=42887797&amp;end=42889797" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -791,7 +822,6 @@ rs58847541
 Breast cancer
 </td>
 <td style="text-align:left;">
-RN7SKP155
 </td>
 <td style="text-align:left;">
 </td>
@@ -814,6 +844,9 @@ BRCA_OCRs; Conserved_LindbladToh
 </td>
 <td style="text-align:right;">
 922
+</td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=8&amp;start=124609166&amp;end=124611166" style="     ">Link</a>
 </td>
 </tr>
 <tr>
@@ -850,6 +883,9 @@ non_coding_transcript_variant; intron_variant
 <td style="text-align:right;">
 73
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=1&amp;start=121279613&amp;end=121281613" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -885,6 +921,9 @@ missense_variant; non_coding_transcript_exon_variant
 <td style="text-align:right;">
 129
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=1&amp;start=242022898&amp;end=242024898" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -915,6 +954,9 @@ Breast cancer; Breast cancer (estrogen-receptor negative)
 </td>
 <td style="text-align:right;">
 261
+</td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=2&amp;start=217919769&amp;end=217921769" style="     ">Link</a>
 </td>
 </tr>
 <tr>
@@ -953,6 +995,9 @@ intron_variant; non_coding_transcript_variant; NMD_transcript_variant
 <td style="text-align:right;">
 252
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=2&amp;start=202122430&amp;end=202124430" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -987,6 +1032,9 @@ non_coding_transcript_variant; intron_variant
 <td style="text-align:right;">
 1052
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=10&amp;start=64298890&amp;end=64300890" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -996,7 +1044,6 @@ rs2853669
 Breast cancer
 </td>
 <td style="text-align:left;">
-TERT
 </td>
 <td style="text-align:left;">
 </td>
@@ -1020,6 +1067,9 @@ Immune_OCRs
 <td style="text-align:right;">
 523
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=5&amp;start=1294349&amp;end=1296349" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -1029,7 +1079,6 @@ rs2992756
 Breast cancer
 </td>
 <td style="text-align:left;">
-KLHDC7A
 </td>
 <td style="text-align:left;">
 </td>
@@ -1052,6 +1101,9 @@ BRCA_OCRs; BRCA_ac; Immune_OCRs
 </td>
 <td style="text-align:right;">
 13
+</td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=1&amp;start=18806339&amp;end=18808339" style="     ">Link</a>
 </td>
 </tr>
 <tr>
@@ -1087,6 +1139,9 @@ intron_variant; non_coding_transcript_variant
 <td style="text-align:right;">
 925
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=8&amp;start=128371172&amp;end=128373172" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -1121,6 +1176,9 @@ intron_variant; non_coding_transcript_variant
 <td style="text-align:right;">
 1097
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=11&amp;start=1897664&amp;end=1899664" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -1154,6 +1212,9 @@ non_coding_transcript_variant; intron_variant
 <td style="text-align:right;">
 1657
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=21&amp;start=16573455&amp;end=16575455" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -1162,7 +1223,7 @@ rs112149573
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
-TOX3 CASC16
+TOX3
 </td>
 <td style="text-align:left;">
 </td>
@@ -1186,6 +1247,9 @@ intron_variant
 </td>
 <td style="text-align:right;">
 1457
+</td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=16&amp;start=52580245&amp;end=52582245" style="     ">Link</a>
 </td>
 </tr>
 <tr>
@@ -1220,6 +1284,9 @@ intron_variant; non_coding_transcript_variant
 <td style="text-align:right;">
 1474
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=16&amp;start=80648830&amp;end=80650830" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -1234,6 +1301,7 @@ Breast cancer
 MAP3K1
 </td>
 <td style="text-align:left;">
+MAP3K1
 </td>
 <td style="text-align:left;">
 </td>
@@ -1252,6 +1320,9 @@ Cancer_Drivers; BRCA_ac; Immune_OCRs
 </td>
 <td style="text-align:right;">
 554
+</td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=5&amp;start=56052535&amp;end=56054535" style="     ">Link</a>
 </td>
 </tr>
 <tr>
@@ -1286,6 +1357,9 @@ intron_variant; non_coding_transcript_variant
 </td>
 <td style="text-align:right;">
 281
+</td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=3&amp;start=4727574&amp;end=4729574" style="     ">Link</a>
 </td>
 </tr>
 <tr>
@@ -1322,6 +1396,9 @@ intron_variant; NMD_transcript_variant; non_coding_transcript_variant
 <td style="text-align:right;">
 1694
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=22&amp;start=38575826&amp;end=38577826" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -1335,6 +1412,7 @@ AQP4-AS1 CHST9
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+AQP4
 </td>
 <td style="text-align:left;">
 </td>
@@ -1355,6 +1433,9 @@ intron_variant; non_coding_transcript_variant
 <td style="text-align:right;">
 1544
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=18&amp;start=24499899&amp;end=24501899" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -1363,7 +1444,7 @@ rs11571815
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
-BRCA2 IFIT1P1 N4BP2L1
+BRCA2
 </td>
 <td style="text-align:left;">
 </td>
@@ -1386,6 +1467,9 @@ intron_variant; NMD_transcript_variant
 </td>
 <td style="text-align:right;">
 1271
+</td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=13&amp;start=32967550&amp;end=32969550" style="     ">Link</a>
 </td>
 </tr>
 <tr>
@@ -1421,6 +1505,9 @@ non_coding_transcript_variant; intron_variant
 <td style="text-align:right;">
 897
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=8&amp;start=76332056&amp;end=76334056" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -1454,6 +1541,9 @@ intron_variant
 <td style="text-align:right;">
 310
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=3&amp;start=46887198&amp;end=46889198" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -1462,7 +1552,7 @@ rs1863868
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
-RP11-438D8.2 ZBTB38
+ZBTB38
 </td>
 <td style="text-align:left;">
 </td>
@@ -1488,6 +1578,9 @@ Conserved_LindbladToh; BRCA_ac; Immune_OCRs; Immune_h3k27ac
 <td style="text-align:right;">
 363
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=3&amp;start=141086623&amp;end=141088623" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -1501,6 +1594,7 @@ RP11-408H1.3
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+TNFSF10
 </td>
 <td style="text-align:left;">
 </td>
@@ -1521,6 +1615,9 @@ non_coding_transcript_variant; intron_variant
 <td style="text-align:right;">
 382
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=3&amp;start=172280285&amp;end=172282285" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -1529,11 +1626,11 @@ rs58242049
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
-KRT18P41
 </td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+DOCK2
 </td>
 <td style="text-align:left;">
 </td>
@@ -1553,6 +1650,9 @@ BRCA_OCRs; Immune_OCRs
 <td style="text-align:right;">
 623
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=5&amp;start=169570464&amp;end=169572464" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -1562,7 +1662,7 @@ rs4971059
 Breast cancer
 </td>
 <td style="text-align:left;">
-KRTCAP2 RP11-201K10.3 TRIM46 MUC1
+RP11-201K10.3 TRIM46
 </td>
 <td style="text-align:left;">
 HCN3
@@ -1590,6 +1690,9 @@ intron_variant; non_coding_transcript_variant
 <td style="text-align:right;">
 78
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=1&amp;start=155147781&amp;end=155149781" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -1598,7 +1701,6 @@ rs10512383
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
-RP11-438P9.2
 </td>
 <td style="text-align:left;">
 KLF4
@@ -1622,6 +1724,9 @@ Cancer_Drivers; BRCA_ac; Immune_OCRs; Immune_h3k27ac
 </td>
 <td style="text-align:right;">
 990
+</td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=9&amp;start=110310539&amp;end=110312539" style="     ">Link</a>
 </td>
 </tr>
 <tr>
@@ -1656,6 +1761,9 @@ intron_variant
 <td style="text-align:right;">
 1060
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=10&amp;start=80851928&amp;end=80853928" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -1669,6 +1777,7 @@ AQP4-AS1 CHST9
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+AQP4
 </td>
 <td style="text-align:left;">
 </td>
@@ -1689,6 +1798,9 @@ intron_variant; non_coding_transcript_variant
 <td style="text-align:right;">
 1544
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=18&amp;start=24499616&amp;end=24501616" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -1698,7 +1810,7 @@ rs11571818
 Squamous cell lung carcinoma; Cancer (pleiotropy)
 </td>
 <td style="text-align:left;">
-BRCA2 IFIT1P1 N4BP2L1
+BRCA2
 </td>
 <td style="text-align:left;">
 </td>
@@ -1721,6 +1833,9 @@ intron_variant; NMD_transcript_variant
 </td>
 <td style="text-align:right;">
 1271
+</td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=13&amp;start=32967810&amp;end=32969810" style="     ">Link</a>
 </td>
 </tr>
 <tr>
@@ -1756,6 +1871,9 @@ intron_variant; non_coding_transcript_variant; NMD_transcript_variant
 <td style="text-align:right;">
 1458
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=16&amp;start=53801494&amp;end=53803494" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -1789,6 +1907,9 @@ intron_variant
 </td>
 <td style="text-align:right;">
 7
+</td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=1&amp;start=10615505&amp;end=10617505" style="     ">Link</a>
 </td>
 </tr>
 <tr>
@@ -1825,6 +1946,9 @@ intron_variant; non_coding_transcript_variant; 5_prime_UTR_variant
 <td style="text-align:right;">
 363
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=3&amp;start=141120814&amp;end=141122814" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -1838,6 +1962,7 @@ RP11-408H1.3
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+TNFSF10
 </td>
 <td style="text-align:left;">
 </td>
@@ -1857,6 +1982,9 @@ non_coding_transcript_variant; intron_variant
 </td>
 <td style="text-align:right;">
 382
+</td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=3&amp;start=172280430&amp;end=172282430" style="     ">Link</a>
 </td>
 </tr>
 <tr>
@@ -1891,6 +2019,9 @@ non_coding_transcript_exon_variant; synonymous_variant
 <td style="text-align:right;">
 614
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=5&amp;start=158203425&amp;end=158205425" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -1899,7 +2030,6 @@ rs10978910
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
-RP11-438P9.1 RP11-438P9.2
 </td>
 <td style="text-align:left;">
 KLF4
@@ -1923,6 +2053,9 @@ Cancer_Drivers
 </td>
 <td style="text-align:right;">
 990
+</td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=9&amp;start=110305851&amp;end=110307851" style="     ">Link</a>
 </td>
 </tr>
 <tr>
@@ -1956,6 +2089,9 @@ intron_variant
 <td style="text-align:right;">
 310
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=3&amp;start=46888187&amp;end=46890187" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -1988,6 +2124,9 @@ non_coding_transcript_variant; intron_variant
 </td>
 <td style="text-align:right;">
 996
+</td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=9&amp;start=119340037&amp;end=119342037" style="     ">Link</a>
 </td>
 </tr>
 <tr>
@@ -2025,6 +2164,9 @@ intron_variant
 <td style="text-align:right;">
 717
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=6&amp;start=130348119&amp;end=130350119" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -2055,6 +2197,9 @@ non_coding_transcript_variant; intron_variant
 </td>
 <td style="text-align:right;">
 1333
+</td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=14&amp;start=37029096&amp;end=37031096" style="     ">Link</a>
 </td>
 </tr>
 <tr>
@@ -2090,6 +2235,9 @@ non_coding_transcript_variant; intron_variant
 <td style="text-align:right;">
 614
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=5&amp;start=158243083&amp;end=158245083" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -2098,7 +2246,7 @@ rs3814316
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
-KRTCAP2 RP11-201K10.3 TRIM46 MUC1
+RP11-201K10.3 TRIM46
 </td>
 <td style="text-align:left;">
 HCN3
@@ -2126,6 +2274,9 @@ synonymous_variant; non_coding_transcript_exon_variant; intron_variant
 <td style="text-align:right;">
 78
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=1&amp;start=155148718&amp;end=155150718" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -2134,7 +2285,6 @@ rs7626526
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
-RP11-285B24.1
 </td>
 <td style="text-align:left;">
 </td>
@@ -2158,6 +2308,9 @@ non_coding_transcript_variant; intron_variant
 </td>
 <td style="text-align:right;">
 317
+</td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=3&amp;start=59359131&amp;end=59361131" style="     ">Link</a>
 </td>
 </tr>
 <tr>
@@ -2191,6 +2344,9 @@ BRCA_OCRs; Conserved_LindbladToh
 <td style="text-align:right;">
 871
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=8&amp;start=29506094&amp;end=29508094" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -2199,11 +2355,11 @@ rs78029804
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
-PRC1 PRC1-AS1 VPS33B
 </td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+FES
 </td>
 <td style="text-align:left;">
 RCCD1
@@ -2225,6 +2381,9 @@ NMD_transcript_variant; intron_variant
 </td>
 <td style="text-align:right;">
 1421
+</td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=15&amp;start=91537920&amp;end=91539920" style="     ">Link</a>
 </td>
 </tr>
 <tr>
@@ -2262,6 +2421,9 @@ intron_variant; NMD_transcript_variant
 <td style="text-align:right;">
 1608
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=19&amp;start=44282031&amp;end=44284031" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -2296,6 +2458,9 @@ intron_variant; non_coding_transcript_variant; NMD_transcript_variant
 <td style="text-align:right;">
 1458
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=16&amp;start=53808123&amp;end=53810123" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -2304,7 +2469,7 @@ rs12883049
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
-RP11-964E11.2 PAX9
+PAX9
 </td>
 <td style="text-align:left;">
 </td>
@@ -2328,6 +2493,9 @@ intron_variant; non_coding_transcript_exon_variant
 </td>
 <td style="text-align:right;">
 1333
+</td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=14&amp;start=37131061&amp;end=37133061" style="     ">Link</a>
 </td>
 </tr>
 <tr>
@@ -2364,6 +2532,9 @@ intron_variant; non_coding_transcript_variant
 <td style="text-align:right;">
 299
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=3&amp;start=30683907&amp;end=30685907" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -2399,6 +2570,9 @@ intron_variant; NMD_transcript_variant
 <td style="text-align:right;">
 1608
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=19&amp;start=44282447&amp;end=44284447" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -2407,7 +2581,6 @@ rs10955009
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
-AC090453.1
 </td>
 <td style="text-align:left;">
 </td>
@@ -2431,6 +2604,9 @@ BRCA_OCRs
 </td>
 <td style="text-align:right;">
 875
+</td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=8&amp;start=36850901&amp;end=36852901" style="     ">Link</a>
 </td>
 </tr>
 <tr>
@@ -2466,6 +2642,9 @@ intron_variant; non_coding_transcript_variant
 <td style="text-align:right;">
 1355
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=14&amp;start=68985157&amp;end=68987157" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -2499,6 +2678,9 @@ intron_variant; non_coding_transcript_variant
 <td style="text-align:right;">
 1355
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=14&amp;start=69010946&amp;end=69012946" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -2529,6 +2711,9 @@ Conserved_LindbladToh
 </td>
 <td style="text-align:right;">
 991
+</td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=9&amp;start=110884781&amp;end=110886781" style="     ">Link</a>
 </td>
 </tr>
 <tr>
@@ -2563,6 +2748,9 @@ intron_variant; NMD_transcript_variant
 <td style="text-align:right;">
 340
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=3&amp;start=99763754&amp;end=99765754" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -2571,7 +2759,6 @@ rs7705465
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
-ARRDC3
 </td>
 <td style="text-align:left;">
 </td>
@@ -2595,6 +2782,9 @@ non_coding_transcript_variant; intron_variant
 </td>
 <td style="text-align:right;">
 575
+</td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=5&amp;start=90679949&amp;end=90681949" style="     ">Link</a>
 </td>
 </tr>
 <tr>
@@ -2631,6 +2821,9 @@ intron_variant
 <td style="text-align:right;">
 1515
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=17&amp;start=53193769&amp;end=53195769" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -2666,6 +2859,9 @@ intron_variant; NMD_transcript_variant
 <td style="text-align:right;">
 1608
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=19&amp;start=44281857&amp;end=44283857" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -2697,6 +2893,9 @@ BRCA_OCRs; Immune_OCRs
 <td style="text-align:right;">
 105
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=1&amp;start=203906205&amp;end=203908205" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -2705,12 +2904,13 @@ rs2290202
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
-RCCD1 PRC1 PRC1-AS1 Y_RNA
+PRC1 PRC1-AS1
 </td>
 <td style="text-align:left;">
 FURIN
 </td>
 <td style="text-align:left;">
+FES
 </td>
 <td style="text-align:left;">
 RCCD1
@@ -2732,6 +2932,9 @@ Cancer_Drivers; Conserved_LindbladToh
 </td>
 <td style="text-align:right;">
 1421
+</td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=15&amp;start=91511267&amp;end=91513267" style="     ">Link</a>
 </td>
 </tr>
 <tr>
@@ -2766,6 +2969,9 @@ intron_variant; non_coding_transcript_variant
 <td style="text-align:right;">
 297
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=3&amp;start=27352716&amp;end=27354716" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -2774,7 +2980,6 @@ rs72658074
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
-HNF4G
 </td>
 <td style="text-align:left;">
 HNF4G
@@ -2799,6 +3004,9 @@ Cancer_Drivers; Immune_OCRs
 <td style="text-align:right;">
 897
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=8&amp;start=76312487&amp;end=76314487" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -2807,7 +3015,7 @@ rs10442
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
-SSBP4 ISYNA1 CTD-3137H5.1 ELL AC010335.1
+SSBP4 ISYNA1
 </td>
 <td style="text-align:left;">
 </td>
@@ -2833,6 +3041,9 @@ BRCA_OCRs; Conserved_LindbladToh; Immune_OCRs; Immune_h3k27ac
 <td style="text-align:right;">
 1593
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=19&amp;start=18544341&amp;end=18546341" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -2841,7 +3052,6 @@ rs35344708
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
-RPL29P3 NKX2-8
 </td>
 <td style="text-align:left;">
 </td>
@@ -2865,6 +3075,9 @@ non_coding_transcript_variant; intron_variant
 <td style="text-align:right;">
 1333
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=14&amp;start=37041547&amp;end=37043547" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -2878,6 +3091,7 @@ rs9383590
 ESR1
 </td>
 <td style="text-align:left;">
+ESR1
 </td>
 <td style="text-align:left;">
 </td>
@@ -2897,6 +3111,9 @@ Cancer_Drivers; BRCA_OCRs; BRCA_ac
 <td style="text-align:right;">
 730
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=6&amp;start=151952765&amp;end=151954765" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -2905,7 +3122,6 @@ rs10096213
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
-AC090453.1
 </td>
 <td style="text-align:left;">
 </td>
@@ -2929,6 +3145,9 @@ Conserved_LindbladToh
 </td>
 <td style="text-align:right;">
 875
+</td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=8&amp;start=36852213&amp;end=36854213" style="     ">Link</a>
 </td>
 </tr>
 <tr>
@@ -2964,6 +3183,9 @@ splice_region_variant; intron_variant; non_coding_transcript_variant
 <td style="text-align:right;">
 299
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=3&amp;start=30685414&amp;end=30687414" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -2977,6 +3199,7 @@ rs9397068
 ESR1
 </td>
 <td style="text-align:left;">
+ESR1
 </td>
 <td style="text-align:left;">
 </td>
@@ -2995,6 +3218,9 @@ Cancer_Drivers; BRCA_OCRs; BRCA_ac
 </td>
 <td style="text-align:right;">
 730
+</td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=6&amp;start=151952859&amp;end=151954859" style="     ">Link</a>
 </td>
 </tr>
 <tr>
@@ -3026,6 +3252,9 @@ BRCA_OCRs; Immune_OCRs
 </td>
 <td style="text-align:right;">
 105
+</td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=1&amp;start=203906135&amp;end=203908135" style="     ">Link</a>
 </td>
 </tr>
 <tr>
@@ -3060,6 +3289,9 @@ intron_variant; non_coding_transcript_variant
 <td style="text-align:right;">
 1355
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=14&amp;start=69035127&amp;end=69037127" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -3068,7 +3300,7 @@ rs12434438
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
-HIF1A HIF1A-AS2 RP11-618G20.1
+HIF1A HIF1A-AS2
 </td>
 <td style="text-align:left;">
 </td>
@@ -3092,6 +3324,9 @@ intron_variant; non_coding_transcript_variant
 </td>
 <td style="text-align:right;">
 1351
+</td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=14&amp;start=62196298&amp;end=62198298" style="     ">Link</a>
 </td>
 </tr>
 <tr>
@@ -3125,6 +3360,9 @@ intron_variant; non_coding_transcript_variant
 </td>
 <td style="text-align:right;">
 575
+</td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=5&amp;start=90676770&amp;end=90678770" style="     ">Link</a>
 </td>
 </tr>
 <tr>
@@ -3160,6 +3398,9 @@ non_coding_transcript_variant; intron_variant
 <td style="text-align:right;">
 996
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=9&amp;start=119312486&amp;end=119314486" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -3168,11 +3409,11 @@ rs56234354
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
-KRT18P41
 </td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+DOCK2
 </td>
 <td style="text-align:left;">
 </td>
@@ -3191,6 +3432,9 @@ Immune_OCRs
 </td>
 <td style="text-align:right;">
 623
+</td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=5&amp;start=169568576&amp;end=169570576" style="     ">Link</a>
 </td>
 </tr>
 <tr>
@@ -3225,6 +3469,9 @@ intron_variant; non_coding_transcript_variant
 <td style="text-align:right;">
 1355
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=14&amp;start=69018538&amp;end=69020538" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -3233,11 +3480,11 @@ rs11743915
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
-KRT18P41
 </td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+DOCK2
 </td>
 <td style="text-align:left;">
 </td>
@@ -3256,6 +3503,9 @@ Immune_OCRs
 </td>
 <td style="text-align:right;">
 623
+</td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=5&amp;start=169568829&amp;end=169570829" style="     ">Link</a>
 </td>
 </tr>
 <tr>
@@ -3290,6 +3540,9 @@ intron_variant
 <td style="text-align:right;">
 1060
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=10&amp;start=80851768&amp;end=80853768" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -3298,12 +3551,12 @@ rs9397436
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
-CCDC170
 </td>
 <td style="text-align:left;">
 ESR1
 </td>
 <td style="text-align:left;">
+ESR1
 </td>
 <td style="text-align:left;">
 </td>
@@ -3322,6 +3575,9 @@ Cancer_Drivers; Conserved_LindbladToh; BRCA_ac
 </td>
 <td style="text-align:right;">
 730
+</td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=6&amp;start=151951002&amp;end=151953002" style="     ">Link</a>
 </td>
 </tr>
 <tr>
@@ -3356,6 +3612,9 @@ intron_variant; non_coding_transcript_variant
 <td style="text-align:right;">
 1351
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=14&amp;start=62210111&amp;end=62212111" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -3389,6 +3648,9 @@ intron_variant
 <td style="text-align:right;">
 1061
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=10&amp;start=80886721&amp;end=80888721" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -3398,7 +3660,6 @@ rs7529522
 Breast cancer
 </td>
 <td style="text-align:left;">
-SNORA40
 </td>
 <td style="text-align:left;">
 </td>
@@ -3421,6 +3682,9 @@ SNORA40
 <td style="text-align:right;">
 72
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=1&amp;start=118229221&amp;end=118231221" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -3429,7 +3693,6 @@ rs75772194
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
-AC090453.1
 </td>
 <td style="text-align:left;">
 </td>
@@ -3451,6 +3714,9 @@ AC090453.1
 </td>
 <td style="text-align:right;">
 875
+</td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=8&amp;start=36845435&amp;end=36847435" style="     ">Link</a>
 </td>
 </tr>
 <tr>
@@ -3487,6 +3753,9 @@ intron_variant
 <td style="text-align:right;">
 601
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=5&amp;start=132387959&amp;end=132389959" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -3495,7 +3764,6 @@ rs4784226
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
-TOX3 CASC16
 </td>
 <td style="text-align:left;">
 </td>
@@ -3519,6 +3787,9 @@ Immune_OCRs
 <td style="text-align:right;">
 1457
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=16&amp;start=52582143&amp;end=52584143" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -3527,11 +3798,12 @@ rs7484068
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
-SLC25A22 PIDD RPLP2 SNORA52
+PIDD
 </td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+CHID1
 </td>
 <td style="text-align:left;">
 AP006621.5 AP006621.1 AP006621.6 RPLP2
@@ -3553,6 +3825,9 @@ non_coding_transcript_variant; intron_variant
 </td>
 <td style="text-align:right;">
 1096
+</td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=11&amp;start=804419&amp;end=806419" style="     ">Link</a>
 </td>
 </tr>
 <tr>
@@ -3587,6 +3862,9 @@ intron_variant
 <td style="text-align:right;">
 1061
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=10&amp;start=80888177&amp;end=80890177" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -3620,6 +3898,9 @@ intron_variant; non_coding_transcript_variant
 <td style="text-align:right;">
 1351
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=14&amp;start=62200500&amp;end=62202500" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -3628,12 +3909,12 @@ rs55678871
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
-AIRE PFKL
+PFKL
 </td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
-AIRE PFKL
+ICOSLG AIRE PFKL TRPM2
 </td>
 <td style="text-align:left;">
 </td>
@@ -3654,6 +3935,9 @@ intron_variant; NMD_transcript_variant; non_coding_transcript_variant
 <td style="text-align:right;">
 1677
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=21&amp;start=45723892&amp;end=45725892" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -3662,7 +3946,7 @@ rs1051545
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
-NEK10 SLC4A7
+SLC4A7
 </td>
 <td style="text-align:left;">
 </td>
@@ -3686,6 +3970,9 @@ non_coding_transcript_variant; intron_variant; 3_prime_UTR_variant
 </td>
 <td style="text-align:right;">
 297
+</td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=3&amp;start=27415999&amp;end=27417999" style="     ">Link</a>
 </td>
 </tr>
 <tr>
@@ -3720,6 +4007,9 @@ non_coding_transcript_variant; intron_variant; NMD_transcript_variant
 <td style="text-align:right;">
 340
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=3&amp;start=99564576&amp;end=99566576" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -3728,11 +4018,12 @@ rs7484123
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
-SLC25A22 PIDD RPLP2 SNORA52
+PIDD
 </td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+CHID1
 </td>
 <td style="text-align:left;">
 AP006621.5 AP006621.1 AP006621.6 RPLP2
@@ -3754,6 +4045,9 @@ non_coding_transcript_variant; intron_variant
 </td>
 <td style="text-align:right;">
 1096
+</td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=11&amp;start=804234&amp;end=806234" style="     ">Link</a>
 </td>
 </tr>
 <tr>
@@ -3792,6 +4086,9 @@ intron_variant; NMD_transcript_variant
 <td style="text-align:right;">
 1608
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=19&amp;start=44280898&amp;end=44282898" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -3800,11 +4097,11 @@ rs11246319
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
-PIDD RPLP2 SNORA52 PNPLA2
 </td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+CHID1
 </td>
 <td style="text-align:left;">
 AP006621.5 AP006621.1 AP006621.6 RPLP2
@@ -3826,6 +4123,9 @@ BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
 <td style="text-align:right;">
 1096
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=11&amp;start=812524&amp;end=814524" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -3834,12 +4134,12 @@ rs55730776
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
-AIRE PFKL
+PFKL
 </td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
-AIRE PFKL
+ICOSLG AIRE PFKL TRPM2
 </td>
 <td style="text-align:left;">
 </td>
@@ -3859,6 +4159,9 @@ intron_variant; NMD_transcript_variant; non_coding_transcript_variant
 </td>
 <td style="text-align:right;">
 1677
+</td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=21&amp;start=45724055&amp;end=45726055" style="     ">Link</a>
 </td>
 </tr>
 <tr>
@@ -3868,12 +4171,12 @@ rs34642010
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
-AIRE PFKL
+PFKL
 </td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
-AIRE PFKL
+ICOSLG AIRE PFKL TRPM2
 </td>
 <td style="text-align:left;">
 </td>
@@ -3893,6 +4196,9 @@ intron_variant; NMD_transcript_variant; non_coding_transcript_variant
 </td>
 <td style="text-align:right;">
 1677
+</td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=21&amp;start=45724064&amp;end=45726064" style="     ">Link</a>
 </td>
 </tr>
 <tr>
@@ -3902,12 +4208,12 @@ rs55828838
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
-AIRE PFKL
+PFKL
 </td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
-AIRE PFKL
+ICOSLG AIRE PFKL TRPM2
 </td>
 <td style="text-align:left;">
 </td>
@@ -3927,6 +4233,9 @@ intron_variant; NMD_transcript_variant; non_coding_transcript_variant
 </td>
 <td style="text-align:right;">
 1677
+</td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=21&amp;start=45724056&amp;end=45726056" style="     ">Link</a>
 </td>
 </tr>
 <tr>
@@ -3962,6 +4271,9 @@ intron_variant; non_coding_transcript_variant
 <td style="text-align:right;">
 299
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=3&amp;start=30687511&amp;end=30689511" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -3970,7 +4282,6 @@ rs5001107
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
-RP11-285B24.1
 </td>
 <td style="text-align:left;">
 </td>
@@ -3995,6 +4306,9 @@ non_coding_transcript_variant; intron_variant
 <td style="text-align:right;">
 317
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=3&amp;start=59359297&amp;end=59361297" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -4003,7 +4317,6 @@ rs7730930
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
-HSPA4
 </td>
 <td style="text-align:left;">
 AFF4
@@ -4028,6 +4341,9 @@ Cancer_Drivers; BRCA_ac; Immune_OCRs; Immune_h3k27ac
 <td style="text-align:right;">
 601
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=5&amp;start=132385684&amp;end=132387684" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -4036,7 +4352,6 @@ rs963513
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
-RP11-285B24.1
 </td>
 <td style="text-align:left;">
 </td>
@@ -4060,6 +4375,9 @@ non_coding_transcript_variant; intron_variant
 </td>
 <td style="text-align:right;">
 317
+</td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=3&amp;start=59359319&amp;end=59361319" style="     ">Link</a>
 </td>
 </tr>
 <tr>
@@ -4091,6 +4409,9 @@ BRCA_OCRs; BRCA_ac
 </td>
 <td style="text-align:right;">
 1019
+</td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=10&amp;start=9075434&amp;end=9077434" style="     ">Link</a>
 </td>
 </tr>
 <tr>
@@ -4126,6 +4447,9 @@ non_coding_transcript_exon_variant; synonymous_variant
 <td style="text-align:right;">
 7
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=1&amp;start=10595341&amp;end=10597341" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -4158,6 +4482,9 @@ intron_variant
 </td>
 <td style="text-align:right;">
 1061
+</td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=10&amp;start=80885835&amp;end=80887835" style="     ">Link</a>
 </td>
 </tr>
 <tr>
@@ -4192,6 +4519,9 @@ non_coding_transcript_variant; intron_variant
 <td style="text-align:right;">
 614
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=5&amp;start=158229013&amp;end=158231013" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -4200,7 +4530,6 @@ rs28572537
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
-SSBP4 ISYNA1 CTD-3137H5.1 ELL AC010335.1
 </td>
 <td style="text-align:left;">
 </td>
@@ -4225,6 +4554,9 @@ BRCA_OCRs; Immune_OCRs; Immune_h3k27ac
 <td style="text-align:right;">
 1593
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=19&amp;start=18551208&amp;end=18553208" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -4234,7 +4566,6 @@ rs10923398
 Red cell distribution width
 </td>
 <td style="text-align:left;">
-RP11-134N8.2
 </td>
 <td style="text-align:left;">
 </td>
@@ -4257,6 +4588,9 @@ Immune_OCRs
 </td>
 <td style="text-align:right;">
 72
+</td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=1&amp;start=118250175&amp;end=118252175" style="     ">Link</a>
 </td>
 </tr>
 <tr>
@@ -4292,6 +4626,9 @@ non_coding_transcript_variant; intron_variant
 <td style="text-align:right;">
 897
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=8&amp;start=76327331&amp;end=76329331" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -4322,6 +4659,9 @@ Immune_OCRs
 </td>
 <td style="text-align:right;">
 1080
+</td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=10&amp;start=115149271&amp;end=115151271" style="     ">Link</a>
 </td>
 </tr>
 <tr>
@@ -4354,6 +4694,9 @@ BRCA_OCRs; Conserved_LindbladToh; Immune_OCRs
 <td style="text-align:right;">
 1080
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=10&amp;start=115128261&amp;end=115130261" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -4384,6 +4727,9 @@ BRCA_OCRs; BRCA_ac
 </td>
 <td style="text-align:right;">
 1019
+</td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=10&amp;start=9075366&amp;end=9077366" style="     ">Link</a>
 </td>
 </tr>
 <tr>
@@ -4417,6 +4763,9 @@ intron_variant
 </td>
 <td style="text-align:right;">
 1061
+</td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=10&amp;start=80888211&amp;end=80890211" style="     ">Link</a>
 </td>
 </tr>
 <tr>
@@ -4452,6 +4801,9 @@ intron_variant; non_coding_transcript_variant
 <td style="text-align:right;">
 299
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=3&amp;start=30687640&amp;end=30689640" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -4486,6 +4838,9 @@ non_coding_transcript_variant; intron_variant
 <td style="text-align:right;">
 614
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=5&amp;start=158219193&amp;end=158221193" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -4518,6 +4873,9 @@ intron_variant; non_coding_transcript_variant
 <td style="text-align:right;">
 297
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=3&amp;start=27267398&amp;end=27269398" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -4548,6 +4906,9 @@ Conserved_LindbladToh
 </td>
 <td style="text-align:right;">
 105
+</td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=1&amp;start=203903676&amp;end=203905676" style="     ">Link</a>
 </td>
 </tr>
 <tr>
@@ -4583,6 +4944,9 @@ non_coding_transcript_variant; intron_variant
 <td style="text-align:right;">
 1457
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=16&amp;start=52598188&amp;end=52600188" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -4614,6 +4978,9 @@ intron_variant
 </td>
 <td style="text-align:right;">
 1695
+</td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=22&amp;start=40538200&amp;end=40540200" style="     ">Link</a>
 </td>
 </tr>
 <tr>
@@ -4650,6 +5017,9 @@ intron_variant
 <td style="text-align:right;">
 601
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=5&amp;start=132387068&amp;end=132389068" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -4684,6 +5054,9 @@ intron_variant
 <td style="text-align:right;">
 7
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=1&amp;start=10596551&amp;end=10598551" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -4717,6 +5090,9 @@ intron_variant
 <td style="text-align:right;">
 1060
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=10&amp;start=80848336&amp;end=80850336" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -4747,6 +5123,9 @@ Conserved_LindbladToh; BRCA_ac
 </td>
 <td style="text-align:right;">
 1019
+</td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=10&amp;start=9081284&amp;end=9083284" style="     ">Link</a>
 </td>
 </tr>
 <tr>
@@ -4780,6 +5159,9 @@ intron_variant
 <td style="text-align:right;">
 310
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=3&amp;start=46887471&amp;end=46889471" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -4793,6 +5175,7 @@ ELL
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
+UBA52
 </td>
 <td style="text-align:left;">
 </td>
@@ -4813,6 +5196,9 @@ intron_variant; NMD_transcript_variant; non_coding_transcript_variant
 </td>
 <td style="text-align:right;">
 1593
+</td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=19&amp;start=18630332&amp;end=18632332" style="     ">Link</a>
 </td>
 </tr>
 <tr>
@@ -4844,6 +5230,9 @@ Immune_OCRs
 </td>
 <td style="text-align:right;">
 991
+</td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=9&amp;start=110886106&amp;end=110888106" style="     ">Link</a>
 </td>
 </tr>
 <tr>
@@ -4879,6 +5268,9 @@ intron_variant
 <td style="text-align:right;">
 1515
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=17&amp;start=53227543&amp;end=53229543" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -4912,6 +5304,9 @@ non_coding_transcript_variant; intron_variant; NMD_transcript_variant; non_codin
 <td style="text-align:right;">
 801
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=7&amp;start=94246971&amp;end=94248971" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -4925,7 +5320,7 @@ TLR1
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
-TLR1
+TLR10 TLR1 TLR6
 </td>
 <td style="text-align:left;">
 </td>
@@ -4945,6 +5340,9 @@ intron_variant
 </td>
 <td style="text-align:right;">
 430
+</td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=4&amp;start=38806654&amp;end=38808654" style="     ">Link</a>
 </td>
 </tr>
 <tr>
@@ -4980,6 +5378,9 @@ intron_variant; non_coding_transcript_variant
 <td style="text-align:right;">
 299
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=3&amp;start=30683175&amp;end=30685175" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -5012,6 +5413,9 @@ intron_variant
 </td>
 <td style="text-align:right;">
 1061
+</td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=10&amp;start=80890631&amp;end=80892631" style="     ">Link</a>
 </td>
 </tr>
 <tr>
@@ -5047,6 +5451,9 @@ intron_variant
 <td style="text-align:right;">
 129
 </td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=1&amp;start=242033263&amp;end=242035263" style="     ">Link</a>
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -5077,6 +5484,9 @@ Immune_OCRs
 </td>
 <td style="text-align:right;">
 991
+</td>
+<td style="text-align:left;">
+<a href="https://my.locuszoom.org/gwas/844282/region/?chrom=9&amp;start=110885534&amp;end=110887534" style="     ">Link</a>
 </td>
 </tr>
 </tbody>

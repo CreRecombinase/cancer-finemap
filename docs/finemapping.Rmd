@@ -97,9 +97,9 @@ Add gene innformation (nearby gene, drivers, immune genes)
 Immune genes were obtained from GO db (using immune response GO term)
 
 ```{r}
-# add regular genes within 10kb
+# which gene is the SNP in
 genes <- suppressMessages(vroom::vroom('~/GERMLINE/refGenome/GENES_COORDs_b37.txt', col_names = T))
-top.snps <- add.nearby.gene(top.snps, genes, dist=10000, gene_type='nearby_gene')
+top.snps <- add.nearby.gene(top.snps, genes, dist=0, gene_type='inside_gene')
 
 # add drivers within 100kb (theres less of them)
 drivers <- readLines('~/GERMLINE/ANNOTATIONS/cancer_driver_genes/AllDrivers_FDR_0.10.txt')
@@ -107,7 +107,7 @@ top.snps <- add.nearby.gene(top.snps, genes[genes$gene %in% drivers, ], dist = 1
 
 # immune genes (within 10kb)
 immune.genes <- suppressMessages(vroom::vroom('~/GERMLINE/refGenome/immune_genes_cords.txt', col_names = T))
-top.snps <- add.nearby.gene(top.snps, immune.genes, dist = 10000, gene_type='nearby_immune')
+top.snps <- add.nearby.gene(top.snps, immune.genes, dist = 100000, gene_type='nearby_immune')
 ```
 
 Add eQTL information
@@ -133,16 +133,26 @@ gwas <- suppressMessages(vroom::vroom('../../GWAS_catalog/gwas_catalog_v1.0-asso
 top.snps <- add.gwas_catalog(top.snps, gwas)
 ```
 
+Add locus zoom link
+
+```{r}
+top.snps <- add.locuszoom.link(top.snps)
+```
+
 
 #### Annotated Table
 
 ```{r}
 top.snps <- top.snps %>% replace(. == 'NA' | is.na(.), '')
 
-top.snps.kable <- top.snps[ , c('snp','gwas_catalog','nearby_gene','nearby_driver','nearby_immune','breast_gtex_eGenes','whole_blood_gtex_eGenes','merged','consequence','zscore','susie_pip','locus')]
-colnames(top.snps.kable) <- c('SNP','GWAS Catalog','Nearby Genes (10kb)','Nearby Drivers (100kb)','Nearby Immune Gene (10kb)','Breast eGenes','Whole-Blood eGenes','Annotation','Consequence','ZScore','PIP','Locus')
+top.snps.kable <- top.snps[ , c('snp','gwas_catalog','inside_gene','nearby_driver','nearby_immune','breast_gtex_eGenes','whole_blood_gtex_eGenes','merged','consequence','zscore','susie_pip','locus','locuszoom')]
+colnames(top.snps.kable) <- c('SNP','GWAS Catalog','Gene Inside','Nearby Drivers (100kb)','Nearby Immune Gene (100kb)','Breast eGenes','Whole-Blood eGenes','Annotation','Consequence','ZScore','PIP','Locus','locuszoom')
 top.snps.kable <- top.snps.kable[order(abs(top.snps.kable$PIP), decreasing = T), ]
-kable(top.snps.kable) %>% 
+
+top.snps.kable %>%
+  mutate(LocusZoom = cell_spec('Link', "html", link = locuszoom)) %>%
+  dplyr::select(-locuszoom) %>%
+  kable("html", escape = FALSE) %>%
   kable_styling(bootstrap_options = c("striped", "hover", "condensed")) %>% 
   scroll_box(width = "100%", height = "600px")
 ```
