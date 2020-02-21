@@ -29,5 +29,7 @@ Coming soon: lung, pancreatic, and head & neck
 
 ## Torus + Fine-mapping
 
-* [Initial fine-mapping on 3 cancer types](finemapping.html)
+* [Initial fine-mapping on 3 cancer types](finemapping.html) (12/2/2019)
+
+* [Annotated Causal SNPs](render_tables.html) (02/20/2020)
 

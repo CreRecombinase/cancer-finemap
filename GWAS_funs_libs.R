@@ -9,6 +9,16 @@ make_ranges <- function(seqname, start, end){
   return(GRanges(seqnames = seqname, ranges = IRanges(start = start, end = end)))
 }
 
+
+locus.lookup <- function(locus){
+  euro_ld <- read.delim('~/GERMLINE/ANNOTATIONS/Euro_LD_Chunks.bed',sep = '\t', stringsAsFactors = F, header = F)
+  currLocus <- euro_ld[euro_ld$V4 == locus, ]
+  chrom <- currLocus$V1
+  start <- currLocus$V2
+  end <- currLocus$V3
+  return(list(locus=locus, chrom=chrom, start=start,end=end))
+}
+
 # Cleans summary statistics and normalizes them for downstream analysis
 clean_sumstats <- function(sumstats, cols.to.keep){
   
@@ -196,7 +206,7 @@ merge_susie_sumstats <- function(susie_results, sumstats){
   return(sumstats)
 }
 
-# Annotations for causal SNPs 
+# Annotations for causal SNPs (apply these after fine-mapping!)
 
 add.gtex.annotation <- function(sumstats, gtex, tissue_type=''){
   stopifnot('chr' %in% colnames(gtex))
@@ -211,7 +221,7 @@ add.gtex.annotation <- function(sumstats, gtex, tissue_type=''){
   # first left join, to get annotations of fine-mapped snps
   annot.sumstats <- left_join(x = sumstats, y = gtex, by='var_id')
   # collapse annotation into one
-  annots <- annot.sumstats %>% group_by(var_id) %>% summarise(!!tissue_type := paste(unique(name), collapse = '\n'))
+  annots <- annot.sumstats %>% group_by(var_id) %>% summarise(!!tissue_type := paste(unique(name), collapse = ';'))
   # join again to get original df with new annotation
   annot.sumstats <- inner_join(sumstats, annots, by = 'var_id') %>% dplyr::select(-var_id)
   
@@ -232,7 +242,7 @@ add.nearby.gene <- function(sumstats, gene.df, dist = 10000, gene_type){
   nearby.genes <- plyranges::join_overlap_inner(gene.ranges, snp.ranges, maxgap=dist) %>%
     as_tibble() %>%
     group_by(snp) %>%
-    summarise(!!gene_type := paste(name, collapse='\n'))
+    summarise(!!gene_type := paste(name, collapse=';'))
   
   annot.sumstats <- left_join(sumstats, nearby.genes, by='snp')
   return(annot.sumstats)
@@ -249,7 +259,7 @@ add.consequence <- function(sumstats){
   result <- suppressMessages(biomaRt::getBM(attributes = c("refsnp_id","consequence_type_tv"),
                                             filters    = "snp_filter", 
                                             values     = snp.list, 
-                                            mart       = snp.mart) %>% as_tibble %>% group_by(refsnp_id) %>% summarise(consequence = paste0(consequence_type_tv, collapse = ';\n'))
+                                            mart       = snp.mart) %>% as_tibble %>% group_by(refsnp_id) %>% summarise(consequence = paste0(consequence_type_tv, collapse = ';'))
   )
   
   colnames(result) <- c('snp', 'consequence')
@@ -265,7 +275,7 @@ add.gwas_catalog <- function(sumstats, gwas){
 
   annot.sumstats <- left_join(sumstats, gwas, by='snp') %>% 
     group_by(snp) %>% 
-    summarise(gwas_catalog = paste0(unique(other_gwas_trait), collapse=';\n'))
+    summarise(gwas_catalog = paste0(unique(other_gwas_trait), collapse=';'))
   
   sumstats <- left_join(sumstats, annot.sumstats, by='snp')
   return(sumstats)
@@ -279,6 +289,18 @@ add.locuszoom.link <- function(sumstats){
   return(sumstats)
 }
 
+add.region <- function(sumstats){
+  
+  loci <- sumstats$locus
+  L <- length(loci)
+  region <- rep(0, L)
+  for(l in 1:L){
+    res <- locus.lookup(loci[l])
+    region[l] <- paste0("chr",res$chr,":",round(res$start/10^6, 1),'-',round(res$end/10^6, 1),'M')
+  }
+  sumstats$region <- region
+  return(sumstats)
+}
 
 # Hi-C related functions
 
