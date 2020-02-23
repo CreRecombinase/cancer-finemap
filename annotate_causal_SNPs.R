@@ -1,8 +1,7 @@
 
 source('GWAS_funs_libs.R')
 
-### Annotate SNPs with PIP > 0.1
-### This script is gross, but it works. It basically just calls all the functions I made in GWAS_funs_libs.R
+### Annotate SNPs
 
 # load SuSiE results and normalized summary statistics
 load('BRCA/BRCA_susie_L1.Robj')
@@ -38,7 +37,6 @@ gtex <- suppressMessages(vroom::vroom('~/GERMLINE/GTEx_Analysis_v7_eQTL/Breast_M
 top.snps <- add.gtex.annotation(top.snps, gtex, tissue_type = 'breast_gtex_eGenes')
 gtex <- suppressMessages(vroom::vroom('~/GERMLINE/GTEx_Analysis_v7_eQTL/Whole_Blood_var_genes.txt.gz', col_names = T, delim = '\t'))
 top.snps <- add.gtex.annotation(top.snps, gtex, tissue_type = 'whole_blood_gtex_eGenes')
-
 
 # What trait is found for each SNP in GWAS Catalog?
 gwas <- suppressMessages(vroom::vroom('~/GERMLINE/GWAS_catalog/gwas_catalog_v1.0-associations_e98_r2020-02-08.tsv',col_names = T))
