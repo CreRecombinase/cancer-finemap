@@ -1,0 +1,123 @@
+---
+title: "LDSC on Cancer"
+output: 
+  html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.align = 'center')
+library(ggplot2)
+library(gridExtra)
+theme_set(theme_bw())
+```
+
+***
+ 
+## Breast cancer
+
+Here I use a baseline model comprised of MAF bins and LD related annotations:
+
+MAF bin 1-10, MAF-adjusted predicted allele age, MAF-adjusted LLD-AFR, Nucleotide diversity, Recombination Rate, McVicker B statistics, and CpG-Content 
+
+On top of the baseline, I included all annotations explained in previous [post](annotations.html)
+
+```{r}
+ldsc.res <- read.delim('../BRCA/BRCA_clean_baseline.results')
+non_baseline <- ldsc.res[1:32,]
+
+non_immune <- c("Driver_OCRs","BRCA_OCRs","BRCA_ac","Cancer_Drivers","Coding_UCSC","Conserved_LindbladToh","Repressed_Hoffman")
+immune_ocr <- c("B","CD4","CD8","CLP","CMP","Ery","GMP-A","GMP-B","GMP-C","HSC","LMPP","MEP","MPP","Mega","Mono","NK","mDC","pDC")
+immune_ac <- c("B_ac","CD4_ac","CD8_ac","DC_ac","Macrophages_ac","Monocytes_ac","NK_ac")
+
+non_baseline$err <- 1.96*(non_baseline$Enrichment_std_error)
+non_baseline$Category <- factor(non_baseline$Category, levels = c(immune_ac, immune_ocr, non_immune))
+non_baseline <- non_baseline[order(non_baseline$Category),]
+non_baseline$Type <- c(rep('Immune-h3k27ac', length(immune_ac)), rep('Immune-OCR', length(immune_ocr)), rep('General',length(non_immune)))
+
+brca.immune.enrich <- non_baseline$Enrichment[non_baseline$Type=='Immune-OCR']
+
+ggplot(non_baseline, aes(x=Category, y=Enrichment, color=Type)) + 
+  geom_point() + 
+  coord_flip() +
+  geom_hline(yintercept = 1, color="red", linetype="dashed") +
+  geom_errorbar(aes(ymin=Enrichment-err, ymax=Enrichment+err), width=.2) +
+  theme(text = element_text(size=14),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank()) +
+  ylab('prop h2 / prop of SNPs')
+```
+
+## Melanoma
+
+```{r}
+ldsc.res <- read.delim('../melanoma/MEL_clean_baseline.results')
+non_baseline <- ldsc.res[1:32,]
+
+non_immune <- c("Driver_OCRs", "MEL_OCRs","MEL_ac","Cancer_Drivers","Coding_UCSC","Conserved_LindbladToh","Repressed_Hoffman")
+immune_ocr <- c("B","CD4","CD8","CLP","CMP","Ery","GMP-A","GMP-B","GMP-C","HSC","LMPP","MEP","MPP","Mega","Mono","NK","mDC","pDC")
+immune_ac <- c("B_ac","CD4_ac","CD8_ac","DC_ac","Macrophages_ac","Monocytes_ac","NK_ac")
+
+non_baseline$err <- 1.96*(non_baseline$Enrichment_std_error)
+non_baseline$Category <- factor(non_baseline$Category, levels = c(immune_ac, immune_ocr, non_immune))
+non_baseline <- non_baseline[order(non_baseline$Category),]
+non_baseline$Type <- c(rep('Immune-h3k27ac', length(immune_ac)), rep('Immune-OCR', length(immune_ocr)), rep('General',length(non_immune)))
+
+mel.immune.enrich <- non_baseline$Enrichment[non_baseline$Type=='Immune-OCR']
+
+ggplot(non_baseline, aes(x=Category, y=Enrichment, color=Type)) + 
+  geom_point() + 
+  coord_flip() +
+  geom_hline(yintercept = 1, color="red", linetype="dashed") +
+  geom_errorbar(aes(ymin=Enrichment-err, ymax=Enrichment+err), width=.2) +
+  theme(text = element_text(size=14),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank()) +
+  ylab('prop h2 / prop of SNPs')
+```
+
+## Prostate cancer
+
+```{r}
+ldsc.res <- read.delim('../PRAD/PRAD_clean_baseline.results')
+non_baseline <- ldsc.res[1:32,]
+
+non_immune <- c("Driver_OCRs","PRAD_OCRs","PRAD_ac","Cancer_Drivers","Coding_UCSC","Conserved_LindbladToh","Repressed_Hoffman")
+immune_ocr <- c("B","CD4","CD8","CLP","CMP","Ery","GMP-A","GMP-B","GMP-C","HSC","LMPP","MEP","MPP","Mega","Mono","NK","mDC","pDC")
+immune_ac <- c("B_ac","CD4_ac","CD8_ac","DC_ac","Macrophages_ac","Monocytes_ac","NK_ac")
+
+non_baseline$err <- 1.96*(non_baseline$Enrichment_std_error)
+non_baseline$Category <- factor(non_baseline$Category, levels = c(immune_ac, immune_ocr, non_immune))
+non_baseline <- non_baseline[order(non_baseline$Category),]
+non_baseline$Type <- c(rep('Immune-h3k27ac', length(immune_ac)), rep('Immune-OCR', length(immune_ocr)), rep('General',length(non_immune)))
+prad.immune.enrich <- non_baseline$Enrichment[non_baseline$Type=='Immune-OCR']
+
+ggplot(non_baseline, aes(x=Category, y=Enrichment, color=Type)) + 
+  geom_point() + 
+  coord_flip() +
+  geom_hline(yintercept = 1, color="red", linetype="dashed") +
+  geom_errorbar(aes(ymin=Enrichment-err, ymax=Enrichment+err), width=.2) +
+  theme(text = element_text(size=14),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank()) +
+  ylab('prop h2 / prop of SNPs')
+```
+
+
+## Lung cancer
+
+coming soon
+
+## colorectal cancer
+
+coming soon
+
+## head and neck cancer
+
+coming soon
+
+## glioma
+
+coming soon
+
+
