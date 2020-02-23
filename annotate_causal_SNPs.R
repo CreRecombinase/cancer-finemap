@@ -61,13 +61,9 @@ top.snps$chrPos <- paste0('chr',top.snps$chr,':',top.snps$pos)
 top.snps.kable <- top.snps[ , c('region','snp','chrPos','inside_gene','in_promoter','nearby_driver','nearby_immune','breast_gtex_eGenes','whole_blood_gtex_eGenes','merged','gwas_catalog','zscore','susie_pip','locuszoom')]
 colnames(top.snps.kable) <- c('Region','SNP','Position','Gene Inside','Promoter Inside','Nearby Drivers (500kb)','Nearby Immune Gene (500kb)','Breast eGenes','Whole-Blood eGenes','Annotation','GWAS Catalog','ZScore','PIP','locuszoom')
 
+# formatting..
 top.snps.kable <- top.snps.kable %>% replace(. == 'NA' | . == "", NA)
-
 top.snps.kable <- top.snps.kable[order(top.snps.kable$Region), ]
-top.snps.kable <- top.snps.kable %>%
-  mutate(LocusZoom = cell_spec('Link', "html", link = locuszoom)) %>%
-  dplyr::select(-locuszoom)
-
 top.snps.kable$PIP <- round(top.snps.kable$PIP, 2)
 top.snps.kable$ZScore <- round(top.snps.kable$ZScore, 2)
 

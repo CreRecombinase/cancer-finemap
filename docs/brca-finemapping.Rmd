@@ -1,5 +1,5 @@
 ---
-title: "Fine-mapping of cancer GWAS"
+title: "Fine-mapping of Breast Cancer GWAS"
 output: html_document
 ---
 
@@ -13,7 +13,9 @@ library(kableExtra)
 
 ***
 
-Fine-mapping was done on several cancer types. Prior weights were obtained from TORUS. I selected all LD blocks that have an FDR $\leq 10$% based on the q-values from TORUS. I used `L = 1` for fine-mapping with `susie_rss()` which works on out-of-sample LD.
+## Intro
+
+Fine-mapping was done on BRCA GWAS summary statistics from the Breast Cancer Consortium (BCAC). Prior weights were obtained from TORUS. I selected all LD blocks that have an FDR $\leq 10$% based on the q-values from TORUS. I used `L = 1` for fine-mapping with `susie_rss()` which works on out-of-sample LD.
 
 The SNP covariance matrix was estimated as follows as adviced by Yuxin:
 
@@ -25,9 +27,7 @@ To get the LD correlation matrix $r_{ij}$, each element of $R$ is transformed as
 
 $$ r_{ij} = \frac{R_{ij}}{\sqrt{R_{ii}}\sqrt{R_{jj}}} $$
 
-## Fine-mapping of breast cancer
-
-### Torus enrichment estimates
+## Enrichment
 
 ```{r}
 torus <- read.delim('../BRCA/torus_enrich.txt', header=F, sep="")
@@ -60,7 +60,9 @@ merged.sumstats <- merge_susie_sumstats(susie.res, sumstats)
 merged.sumstats.unif <- merge_susie_sumstats(susie.res.unif, sumstats)
 ```
 
-### Number of variants per block
+## Fine-mapping summary
+
+### Variants per credible-set
 
 ```{r}
 variants.per.chunk <- merged.sumstats %>% group_by(locus) %>% summarise(n = sum(CS))
@@ -77,5 +79,7 @@ pip_df <- data.frame(pip = merged.sumstats$susie_pip, pip_uniform = merged.sumst
 ggplot(pip_df, aes(x=pip_uniform, y=pip)) + geom_point() + geom_abline(slope = 1, color='red') + xlab('PIP (uniform)') + ylab('PIP')
 ```
 
+### Link to table
 
+[Google sheets link for Breast Cancer finemapping](https://docs.google.com/spreadsheets/d/1tTEj1ZqtCV5CgPqVNz_FEpifNtTmu6vHuYA1aLZsRd8/edit?usp=sharing)
 
